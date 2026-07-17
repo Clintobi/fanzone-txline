@@ -1,222 +1,72 @@
-import axios, { AxiosInstance } from 'axios'
-
-const DEVNET = {
-  rpcUrl: 'https://api.devnet.solana.com',
-  apiOrigin: 'https://txline-dev.txodds.com',
-  programId: '6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J',
-  txlTokenMint: '4Zao8ocPhmMgq7PdsYWyxvqySMGx7xb9cMftPMkEokRG',
-  // Free-tier devnet API token from an on-chain subscribe (serviceLevel 1).
-  // Grants read access to free World Cup / Friendlies devnet data; safe to ship.
-  apiToken:
-    process.env.NEXT_PUBLIC_TXLINE_API_TOKEN ||
-    'txoracle_api_6f0df6e475c04668b9a3a19aa1eefda4',
-}
+// Client TxLINE access — routed through this app's server-side proxy at /api/txline.
+// The browser never talks to TxLINE directly, so the API token stays server-only and
+// a CloudFront blip on one request can't leave the UI stuck on "Loading fixtures…".
+// (Live scores are polled from /api/txline/scores/snapshot by the UI; this keeps the
+// data path reliable on Vercel's serverless runtime, where long-lived SSE is flaky.)
 
 export type Fixture = {
   FixtureId: number
   CompetitionId: number
-  StartTime: string
+  StartTime: string | number
   Participant1: string
   Participant2: string
   Participant1IsHome: boolean
-  GameState?: number
+  GameState?: number | string
   Status?: string
 }
 
 export type ScoreRecord = {
-  fixtureId: number
-  seq: number
-  ts: number
-  statusId: number
-  period: number
-  action: string
-  homeScore?: number
-  awayScore?: number
-  stats?: Record<string, number>
+  FixtureId?: number
+  Seq?: number
+  Ts?: number
+  StatusId?: number
+  Period?: number
+  Action?: string
+  GameState?: string
+  Stats?: Record<string, number>
 }
 
-export type OddsRecord = {
-  fixtureId: number
-  ts: number
-  odds: Array<{
-    marketId: number
-    label: string
-    back: number
-    lay: number
-  }>
+const BASE = '/api/txline'
+
+async function getJson<T>(path: string): Promise<T> {
+  const r = await fetch(`${BASE}/${path}`, { cache: 'no-store' })
+  if (!r.ok) throw new Error(`${path} -> ${r.status}`)
+  return (await r.json()) as T
 }
 
 export class TxlineClient {
-  private http: AxiosInstance
-  private jwt: string | null = null
-  private apiToken: string | null = null
-  private apiOrigin: string
-
-  constructor() {
-    this.apiOrigin = DEVNET.apiOrigin
-    this.http = axios.create({
-      timeout: 30000,
-      headers: { 'Content-Type': 'application/json' },
-      baseURL: `${this.apiOrigin}/api`,
-    })
-  }
-
-  get devnet() { return DEVNET }
-
-  async authenticate(): Promise<{ jwt: string; apiToken: string }> {
-    const authRes = await axios.post(`${this.apiOrigin}/auth/guest/start`)
-    this.jwt = authRes.data.token
-
-    this.http.defaults.headers.common['Authorization'] = `Bearer ${this.jwt}`
-    // The data API also requires the subscription API token on every request.
-    this.setApiToken(DEVNET.apiToken)
-    return { jwt: this.jwt, apiToken: this.apiToken || '' }
-  }
-
-  setApiToken(token: string) {
-    this.apiToken = token
-    this.http.defaults.headers.common['X-Api-Token'] = token
-  }
-
-  get headers() {
-    return {
-      Authorization: `Bearer ${this.jwt}`,
-      'X-Api-Token': this.apiToken || '',
-      'Content-Type': 'application/json',
-    }
-  }
+  // kept for API compatibility with existing callers; auth now happens server-side.
+  async authenticate(): Promise<void> { /* no-op: the proxy holds the guest JWT + token */ }
 
   async getFixtures(competitionId?: number): Promise<Fixture[]> {
-    const params: Record<string, string> = {}
-    if (competitionId) params.competitionId = String(competitionId)
-    const res = await this.http.get('/fixtures/snapshot', { params })
-    return res.data as Fixture[]
+    const q = competitionId ? `?competitionId=${competitionId}` : ''
+    const data = await getJson<Fixture[]>(`fixtures/snapshot${q}`)
+    return Array.isArray(data) ? data : []
   }
 
   async getScoresSnapshot(fixtureId: number): Promise<ScoreRecord[]> {
-    const res = await this.http.get(`/scores/snapshot/${fixtureId}`)
-    return res.data as ScoreRecord[]
+    const data = await getJson<ScoreRecord[]>(`scores/snapshot/${fixtureId}`)
+    return Array.isArray(data) ? data : []
   }
 
-  async getOddsSnapshot(fixtureId: number): Promise<OddsRecord[]> {
-    const res = await this.http.get(`/odds/snapshot/${fixtureId}`)
-    return res.data as OddsRecord[]
-  }
-
-  async getHistoricalScores(fixtureId: number): Promise<ScoreRecord[]> {
-    const res = await this.http.get(`/scores/historical/${fixtureId}`)
-    return res.data as ScoreRecord[]
-  }
-
-  async getScoreUpdates(epochDay: number, hour: number, interval: number): Promise<ScoreRecord[]> {
-    const res = await this.http.get(`/scores/updates/${epochDay}/${hour}/${interval}`)
-    return res.data as ScoreRecord[]
-  }
-
-  async getStatValidation(fixtureId: number, seq: number, statKeys: string) {
-    const res = await this.http.get('/scores/stat-validation', {
-      params: { fixtureId, seq, statKeys },
-    })
-    return res.data
-  }
-
-  async streamScores(
-    onScore: (score: ScoreRecord) => void,
-    fixtureId?: number,
-    signal?: AbortSignal
-  ): Promise<void> {
-    const params = fixtureId ? `?fixtureId=${fixtureId}` : ''
-    const res = await fetch(`${this.apiOrigin}/api/scores/stream${params}`, {
-      headers: {
-        ...this.headers,
-        Accept: 'text/event-stream',
-        'Cache-Control': 'no-cache',
-      },
-      signal,
-    })
-
-    if (!res.ok) throw new Error(`Stream failed: ${res.status}`)
-    if (!res.body) throw new Error('No response body')
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    try {
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() || ''
-
-        for (const block of parts) {
-          const msg = parseSSE(block)
-          if (msg) {
-            try { onScore(JSON.parse(msg.data)) }
-            catch { /* skip unparseable */ }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock()
-    }
-  }
-
-  async streamOdds(
-    onOdds: (odds: OddsRecord) => void,
-    fixtureId?: number,
-    signal?: AbortSignal
-  ): Promise<void> {
-    const params = fixtureId ? `?fixtureId=${fixtureId}` : ''
-    const res = await fetch(`${this.apiOrigin}/api/odds/stream${params}`, {
-      headers: {
-        ...this.headers,
-        Accept: 'text/event-stream',
-        'Cache-Control': 'no-cache',
-      },
-      signal,
-    })
-
-    if (!res.ok) throw new Error(`Stream failed: ${res.status}`)
-    if (!res.body) throw new Error('No response body')
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    try {
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() || ''
-
-        for (const block of parts) {
-          const msg = parseSSE(block)
-          if (msg) {
-            try { onOdds(JSON.parse(msg.data)) }
-            catch { /* skip */ }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock()
-    }
+  async getOddsSnapshot(fixtureId: number): Promise<any[]> {
+    const data = await getJson<any[]>(`odds/snapshot/${fixtureId}`)
+    return Array.isArray(data) ? data : []
   }
 }
 
-function parseSSE(block: string): { data: string; event?: string } | null {
-  const msg: { data: string; event?: string } = { data: '' }
-  for (const line of block.split('\n')) {
-    if (line.startsWith('data: ')) msg.data += line.slice(6) + '\n'
-    else if (line.startsWith('event: ')) msg.event = line.slice(7)
-  }
-  msg.data = msg.data.trim()
-  return msg.data ? msg : null
+// Normalize raw TxLINE score records into home/away goals + a live/finished status.
+// Goal stat keys 1,2 = the two teams' goals.
+export function readScore(rows: ScoreRecord[]): { h: number; a: number; status: string; live: boolean; finished: boolean } {
+  if (!rows.length) return { h: 0, a: 0, status: 'Awaiting kickoff', live: false, finished: false }
+  const withGoals = rows.filter(r => r.Stats && r.Stats['1'] != null && r.Stats['2'] != null)
+  const latest = (withGoals.length ? withGoals : rows).slice().sort((a, b) => (b.Seq ?? 0) - (a.Seq ?? 0))[0]
+  const h = Number(latest?.Stats?.['1'] ?? 0)
+  const a = Number(latest?.Stats?.['2'] ?? 0)
+  const statusId = latest?.StatusId ?? 0
+  const finished = statusId >= 100 || latest?.Action === 'game_finalised'
+  const live = statusId > 0 && statusId < 100
+  return { h, a, status: finished ? 'Full time' : live ? 'Live' : 'Awaiting kickoff', live, finished }
 }
 
 export const txline = new TxlineClient()

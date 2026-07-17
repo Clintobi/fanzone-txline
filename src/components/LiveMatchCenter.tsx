@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { txline, type Fixture, type ScoreRecord } from '@/lib/txline'
+import { txline, readScore, type Fixture } from '@/lib/txline'
 
 type Pick = 'home' | 'draw' | 'away'
 const FLAG: Record<string, string> = {
@@ -22,7 +22,7 @@ export function LiveMatchCenter() {
   const [feed, setFeed] = useState<string[]>([])
   const [picks, setPicks] = useState<Record<number, Pick>>({})
   const [points, setPoints] = useState(0)
-  const abort = useRef<AbortController | null>(null)
+  const poll = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     try {
@@ -32,21 +32,32 @@ export function LiveMatchCenter() {
     ;(async () => {
       try { await txline.authenticate(); setFixtures(await txline.getFixtures()) } catch {}
     })()
+    return () => { if (poll.current) clearInterval(poll.current) }
   }, [])
 
   function selectMatch(f: Fixture) {
-    abort.current?.abort()
+    if (poll.current) clearInterval(poll.current)
     setSel(f); setFeed([]); setScore({ h: 0, a: 0, status: 'Connecting to TxLINE…', live: false })
-    const ac = new AbortController(); abort.current = ac
-    txline.streamScores((s: ScoreRecord) => {
-      const h = s.homeScore ?? 0, a = s.awayScore ?? 0
-      const live = (s.statusId ?? 0) > 0 && (s.statusId ?? 0) < 100
-      const finished = (s.statusId ?? 0) >= 100
-      setScore({ h, a, status: finished ? 'Full time' : live ? `Live · ${s.period ?? ''}` : 'Awaiting kickoff', live })
-      if (s.action) setFeed(prev => [`${new Date((s.ts ?? Date.now())).toLocaleTimeString()} · ${s.action}${s.homeScore != null ? ` (${h}–${a})` : ''}`, ...prev].slice(0, 8))
-    }, f.FixtureId, ac.signal).catch(() => setScore(v => ({ ...v, status: 'Stream idle — live on kickoff' })))
-    // graceful pre-match state
-    setTimeout(() => setScore(v => v.live ? v : { ...v, status: 'Awaiting kickoff' }), 4000)
+    // Poll the server-side proxy for scores (reliable on Vercel; no browser->CloudFront
+    // dependency and no exposed token). Stops polling once the match is finished.
+    const tick = async () => {
+      try {
+        const rows = await txline.getScoresSnapshot(f.FixtureId)
+        const s = readScore(rows)
+        setScore({ h: s.h, a: s.a, status: s.status, live: s.live })
+        const events = rows
+          .filter(r => r.Action)
+          .sort((a, b) => (b.Seq ?? 0) - (a.Seq ?? 0))
+          .slice(0, 8)
+          .map(r => `${r.Ts ? new Date(r.Ts).toLocaleTimeString() : ''} · ${r.Action}${r.Stats?.['1'] != null ? ` (${r.Stats['1']}–${r.Stats['2']})` : ''}`)
+        if (events.length) setFeed(events)
+        if (s.finished && poll.current) { clearInterval(poll.current); poll.current = null }
+      } catch {
+        setScore(v => (v.live ? v : { ...v, status: 'Awaiting kickoff' }))
+      }
+    }
+    tick()
+    poll.current = setInterval(tick, 5000)
   }
 
   function makePick(f: Fixture, p: Pick) {
