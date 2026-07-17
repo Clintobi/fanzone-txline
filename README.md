@@ -7,7 +7,7 @@ an engaging experience: **live scores that update the instant they happen**, a
 live match-event feed, and a casual **predict-the-winner** game with points and
 a leaderboard. No wallet, no money — pure engagement.
 
-**Live:** _(deployed URL below)_
+**Live:** https://fanzone-txline.vercel.app
 
 ## What it does
 
