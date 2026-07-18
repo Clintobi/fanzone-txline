@@ -5,9 +5,11 @@ import { TXLINE_ORACLE_PROGRAM, explorerAddr } from '@/lib/solana'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-// GET ?fixture=<id> -> settle the fixture's scoreline against TxLINE's on-chain
-// Merkle proof. Returns the anchored root + a link to the oracle program so the
-// result is verifiable, not just asserted.
+// GET ?fixture=<id> -> fetch TxLINE's stat-validation Merkle root for the fixture's
+// scoreline (the same value TxODDS anchors on-chain) + a link to the oracle program,
+// so the result is tied to TxODDS's own attestation, not just asserted by this app.
+// NOTE: this reads the root from TxLINE's validation API; it does not itself run the
+// on-chain validate_stat CPI — the copy is careful to say exactly that.
 export async function GET(req: NextRequest) {
   const fixtureId = Number(req.nextUrl.searchParams.get('fixture') || 0)
   if (!fixtureId) return NextResponse.json({ error: 'fixture required' }, { status: 400 })

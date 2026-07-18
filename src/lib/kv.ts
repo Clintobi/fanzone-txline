@@ -31,14 +31,22 @@ export async function submitScore(room: string, member: string, score: number): 
 }
 
 export type Row = { name: string; pts: number }
+
+// A seeded standing for the default demo room, so a first-time visitor lands on the game
+// already in motion (winner 100 · winner+exact 250 · missed 0) instead of an empty board.
+// The instant anyone locks a real call into `final`, their board replaces this.
+const DEMO_FINAL: Row[] = [
+  { name: 'Diego', pts: 250 }, { name: 'Amara', pts: 100 }, { name: 'Kenji', pts: 100 }, { name: 'Priya', pts: 0 },
+]
+
 export async function leaderboard(room: string, top = 20): Promise<Row[]> {
   if (kvLive) {
     const flat: string[] = await cmd(['ZRANGE', `room:${room}`, 0, top - 1, 'REV', 'WITHSCORES'])
     const rows: Row[] = []
     for (let i = 0; i < flat.length; i += 2) rows.push({ name: flat[i], pts: Number(flat[i + 1]) })
-    return rows
+    return rows.length ? rows : (room === 'final' ? DEMO_FINAL : rows)
   }
   const m = mem.get(room)
-  if (!m) return []
+  if (!m || m.size === 0) return room === 'final' ? DEMO_FINAL : []
   return [...m.entries()].map(([name, pts]) => ({ name, pts })).sort((a, b) => b.pts - a.pts).slice(0, top)
 }

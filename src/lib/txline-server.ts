@@ -100,7 +100,7 @@ export async function settlementProof(fixtureId: number): Promise<Settlement> {
     seq: latest.Seq,
     h: Number(latest.Stats['1']), a: Number(latest.Stats['2']),
     detail: root
-      ? 'Result verified against TxLINE’s on-chain Merkle proof, anchored on Solana.'
-      : 'Proof not published for this event yet.',
+      ? 'Result carries TxLINE’s stat-validation Merkle root — the exact value TxODDS anchors on-chain.'
+      : 'Attestation not published for this event yet.',
   }
 }

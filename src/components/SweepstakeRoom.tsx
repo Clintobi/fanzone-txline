@@ -297,17 +297,18 @@ export function SweepstakeRoom() {
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">Solana devnet</span>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Every call is <b className="text-slate-200">timestamped on Solana before kickoff</b>, so nobody in your
-            room can change a pick after the fact. At full time the result is
-            <b className="text-slate-200"> settled from TxLINE&apos;s own on-chain Merkle proof</b> — the leaderboard
-            isn&apos;t &ldquo;trust the app,&rdquo; it&apos;s verified from the same proof TxODDS anchors on-chain.
+            Every call is <b className="text-slate-200">timestamped on Solana devnet before kickoff</b> (a real
+            transaction you can open in Explorer), so nobody in your room can change a pick after the fact. At full
+            time the result is <b className="text-slate-200">tied to TxLINE&apos;s stat-validation Merkle root</b> —
+            the exact value TxODDS anchors on-chain — so it isn&apos;t &ldquo;trust the app,&rdquo; it&apos;s pinned to
+            TxODDS&apos;s own cryptographic attestation.
           </p>
           {settle && (
             <div className="mt-3 text-xs">
               {settle.verified ? (
                 <a href={settle.programExplorer} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-pitch-300 hover:underline">
-                  ✓ Result settled from TxLINE on-chain proof · root {settle.root?.slice(0, 8)}… · seq {settle.seq} · oracle program ↗
+                  ✓ Result matched to TxLINE&apos;s anchored Merkle root · {settle.root?.slice(0, 8)}… · seq {settle.seq} · oracle program ↗
                 </a>
               ) : (
                 <span className="text-slate-600">{settle.detail}</span>
