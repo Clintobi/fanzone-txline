@@ -32,6 +32,13 @@ auto-selects the liveliest fixture, so the win-prob bar will be moving.
   *"Your friends tap it, land in the same room, and try to beat your call. No wallet,
   no app install — that's the growth loop."* (Optionally show the 🔥 streak chip.)
 
+**[optional] Own your call (Privy)**
+- Tap **"Sign in to own your calls"** → enter your email → the one-time code. In a
+  couple seconds you have a **real embedded Solana wallet, no seed phrase**. The chip
+  flips to *"you own your calls · <addr>"*. *"No wallet? No problem — we make one for
+  you invisibly, and now your call is tied to your own on-chain wallet, not ours."*
+  (Set up ahead of time so it's instant on camera.)
+
 **[0:42–0:55] It's real — show the data**
 - Open the fixture dropdown, switch to another match. *"Every fixture here is the
   live TxLINE snapshot — when a match has no 1X2 posted yet, we say so instead of
