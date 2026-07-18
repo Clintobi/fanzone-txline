@@ -21,7 +21,10 @@ auto-selects the liveliest fixture, so the win-prob bar will be moving.
 - Type a name. Tap a result (e.g. the favourite), add an exact score `2–1`.
 - Hit **Lock it in.** *"Winner's a hundred points, exact score another one-fifty.
   No stakes, no wallet — you just call it."*
-- Note the copy: *"it grades live from the real TxLINE result at full time."*
+- **On-chain beat (the wow):** point at *"🔒 Call committed on-chain before kickoff
+  · view proof ↗"* and click it. *"No wallet — but your call just got timestamped
+  on Solana. Your whole room's picks are locked on-chain before kickoff, so nobody
+  can change theirs after a goal goes in."* Show the real tx on the Solana Explorer.
 
 **[0:35–0:55] It's real — show the data**
 - Open the fixture dropdown, switch to another match. *"Every fixture here is the
@@ -37,9 +40,17 @@ auto-selects the liveliest fixture, so the win-prob bar will be moving.
   names appear on the **shared leaderboard.** *"Your whole group in one board,
   live — this is the Sleeper-style party layer for the World Cup."*
 
-**[1:20–1:30] Close**
+**[1:20–1:35] Settlement — provably fair**
+- Scroll to the **Provably fair** panel. If a match has finished, point at
+  *"✓ Result settled from TxLINE on-chain proof · root … · oracle program ↗"* and
+  click through to the program. *"When the whistle blows, the result isn't 'trust
+  our app' — it's verified from TxLINE's own on-chain Merkle proof, the same one
+  TxODDS anchors on Solana."*
+
+**[1:35–1:45] Close**
 - Point at "Host a branded room": *"Rooms are the product — sponsored sweepstakes,
-  prize pools, branded themes. Built on TxLINE, live on Solana's World Cup feed."*
+  prize pools, branded themes. Zero-friction to play, provably fair on Solana,
+  live on TxLINE's World Cup feed."*
 - End on the moving win-prob bar.
 
 ---

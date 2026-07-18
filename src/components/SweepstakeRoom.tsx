@@ -27,7 +27,15 @@ export function SweepstakeRoom() {
   const [exact, setExact] = useState('')
   const [locked, setLocked] = useState<{ pick: Pick; exact?: [number, number] } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [chainOn, setChainOn] = useState(false)
+  const [commit, setCommit] = useState<{ pending?: boolean; signature?: string; explorer?: string } | null>(null)
+  const [settle, setSettle] = useState<{ verified: boolean; root?: string; seq?: number; programExplorer?: string; detail?: string } | null>(null)
   const poll = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // is the on-chain commit signer configured on this deploy?
+  useEffect(() => {
+    fetch('/api/commit').then(r => r.json()).then(d => setChainOn(!!d.enabled)).catch(() => {})
+  }, [])
 
   // room id + identity from URL / storage
   useEffect(() => {
@@ -100,6 +108,18 @@ export function SweepstakeRoom() {
       const d = await (await fetch('/api/room', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room, name: name.trim(), pts }) })).json()
       setBoard(d.board || []); setShared(!!d.shared)
     } catch {}
+    // stamp the call on-chain (Solana devnet) so it's timestamped before kickoff
+    if (chainOn && sel) {
+      setCommit({ pending: true })
+      const pickLabel = lk.pick === 'home' ? sel.Participant1 : lk.pick === 'away' ? sel.Participant2 : 'Draw'
+      try {
+        const c = await (await fetch('/api/commit', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room, alias: name.trim(), fixture: `${sel.Participant1} v ${sel.Participant2}`, pick: pickLabel, exact: lk.exact ? `${lk.exact[0]}-${lk.exact[1]}` : '' }),
+        })).json()
+        setCommit(c?.signature ? { signature: c.signature, explorer: c.explorer } : null)
+      } catch { setCommit(null) }
+    }
   }
 
   // when the match finishes, re-grade a pending pick and push the result
@@ -110,6 +130,13 @@ export function SweepstakeRoom() {
         .then(r => r.json()).then(d => { setBoard(d.board || []); setShared(!!d.shared) }).catch(() => {})
     }
   }, [score.finished]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // when the featured match is finished, verify its result against TxLINE's on-chain proof
+  useEffect(() => {
+    if (sel && score.finished) {
+      fetch(`/api/settle?fixture=${sel.FixtureId}`).then(r => r.json()).then(setSettle).catch(() => {})
+    } else { setSettle(null) }
+  }, [sel, score.finished])
 
   const shareLink = useMemo(() => (typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(room)}` : ''), [room])
   function share() {
@@ -230,6 +257,16 @@ export function SweepstakeRoom() {
               {actualLabel && locked.pick !== actualLabel && <span className="text-slate-500"> (result: {actualLabel})</span>}
             </p>
           )}
+          {chainOn && locked && (
+            <div className="mt-3 text-xs">
+              {commit?.pending && <span className="text-slate-500">🔒 stamping your call on Solana devnet…</span>}
+              {commit?.signature && (
+                <a href={commit.explorer} target="_blank" rel="noopener noreferrer" className="text-pitch-300 hover:underline">
+                  🔒 Call committed on-chain before kickoff · view proof ↗
+                </a>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -251,6 +288,34 @@ export function SweepstakeRoom() {
           </div>
         )}
       </div>
+
+      {/* provably fair — on-chain trust layer */}
+      {chainOn && (
+        <div className="rounded-2xl border border-pitch-900/50 bg-pitch-950/20 p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-semibold text-pitch-200">Provably fair</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">Solana devnet</span>
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Every call is <b className="text-slate-200">timestamped on Solana before kickoff</b>, so nobody in your
+            room can change a pick after the fact. At full time the result is
+            <b className="text-slate-200"> settled from TxLINE&apos;s own on-chain Merkle proof</b> — the leaderboard
+            isn&apos;t &ldquo;trust the app,&rdquo; it&apos;s verified from the same proof TxODDS anchors on-chain.
+          </p>
+          {settle && (
+            <div className="mt-3 text-xs">
+              {settle.verified ? (
+                <a href={settle.programExplorer} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-pitch-300 hover:underline">
+                  ✓ Result settled from TxLINE on-chain proof · root {settle.root?.slice(0, 8)}… · seq {settle.seq} · oracle program ↗
+                </a>
+              ) : (
+                <span className="text-slate-600">{settle.detail}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* monetization */}
       <div className="rounded-2xl border border-slate-800/70 bg-gradient-to-br from-slate-900/60 to-pitch-950/20 p-5 flex items-center justify-between flex-wrap gap-3">

@@ -21,6 +21,8 @@ link and play.
 - **Bring your group.** Every room has an invite link and a leaderboard. Connect
   a KV store (see [`SETUP-KV.md`](./SETUP-KV.md)) and the board is durable and
   shared across everyone in the room.
+- **Provably fair.** Each locked call is committed on Solana before kickoff and
+  the result settles from TxLINE's on-chain Merkle proof — see below.
 
 ## Data provenance (what's real, and what isn't)
 
@@ -41,29 +43,51 @@ Honesty matters more than a flashy claim, so here's exactly how data flows:
   is set; otherwise an in-memory fallback the UI honestly labels `local (connect
   KV to share)`.
 
-## Scope (what this is, and isn't)
+## Provably fair — on-chain, without a wallet
 
-Fan Zone is deliberately a **zero-friction, no-stakes** fan experience — no
-wallet connect, no tokens, no on-chain settlement. The Solana tie-in is the
-hackathon's data layer (TxLINE's feed is activated via an on-chain subscribe and
-carries on-chain Merkle attestations). Surfacing that settlement proof in-product
-is the natural next step; today the focus is the mainstream, phone-first game.
+Fan Zone is zero-friction (no wallet, no tokens, no stakes) **and** genuinely
+on-chain, because the two aren't in tension:
+
+- **Every call is committed on Solana before kickoff.** When you lock a pick, the
+  server writes a Memo transaction on Solana **devnet** (`src/lib/solana.ts` →
+  `/api/commit`) so the call is timestamped on-chain and can't be edited after
+  the fact — real group trust for a sweepstake. It's a real, finalized devnet tx
+  (server-custodial signing, disclosed — you don't need a wallet), not a hash we
+  invent, with a live Solana Explorer link in the UI.
+- **Results settle from TxLINE's on-chain Merkle proof.** At full time
+  (`/api/settle`) we call TxLINE's `scores/stat-validation`, pull the
+  `eventStatRoot` it anchors on Solana (oracle program
+  `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J`), and show the result as
+  *verified from that proof* — the leaderboard is settled from the same on-chain
+  attestation TxODDS publishes, not "trust our app."
+- **Data access is on-chain-activated.** The free-tier feed was unlocked with a
+  real on-chain subscribe transaction (kept out of the repo).
+
+Honest limits: commits/settlement are on **devnet**; the commit signer is
+server-custodial (a deliberate no-wallet UX), and each is clearly labeled
+"Solana devnet" in the UI. Set `FZ_DEVNET_SECRET` (a funded devnet keypair) to
+enable commits; absent it, `/api/commit` returns `{enabled:false}` and the UI
+hides the feature — nothing is faked.
 
 ## Architecture
 
 ```
 browser ── /api/txline/featured ──┐   scans fixtures+odds+scores, picks the
         ── /api/txline/<path>  ───┤   liveliest real match (server-side)
-        ── /api/room           ───┘   room leaderboard (KV or in-memory)
+        ── /api/room           ───┤   room leaderboard (KV or in-memory)
+        ── /api/commit         ───┤   Memo commit of a locked call (Solana devnet)
+        ── /api/settle         ───┘   settle result vs TxLINE on-chain Merkle proof
                      │
-             src/lib/txline-server.ts  (guest JWT + token, server-only)
+       txline-server.ts (JWT+token) · solana.ts (devnet signer)
                      │
-             txline-dev.txodds.com
+        txline-dev.txodds.com   +   Solana devnet
 ```
 
 - `src/lib/normalize.ts` — pure score/odds normalizers, shared client + server.
-- `src/lib/txline-server.ts` — server-only auth + upstream fetch (cached JWT).
+- `src/lib/txline-server.ts` — server-only auth + upstream fetch + `settlementProof`.
+- `src/lib/solana.ts` — server-custodial devnet signer for on-chain commits.
 - `src/app/api/txline/featured/route.ts` — the liveliest-match scanner.
+- `src/app/api/{commit,settle}/route.ts` — the on-chain trust layer.
 - `src/components/SweepstakeRoom.tsx` — the room UI.
 
 ## Run it

@@ -26,9 +26,10 @@ export default function Home() {
             Call the Final. Bring your group.
           </h2>
           <p className="text-slate-400 max-w-2xl">
-            Spin up a sweepstake room, call the score, and watch the win-probability bar swing on
-            every real goal — a shared leaderboard your whole group plays in, powered by TxLINE&apos;s
-            live odds and scores.
+            Spin up a sweepstake room and call the score against a live win-probability bar on
+            TxLINE&apos;s real odds. Every call is <span className="text-slate-200">locked on Solana before kickoff</span> and
+            settled from <span className="text-slate-200">TxLINE&apos;s on-chain proof</span> — a shared, provably-fair
+            leaderboard your whole group plays in. No wallet needed.
           </p>
         </div>
       </section>
