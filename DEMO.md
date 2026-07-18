@@ -45,6 +45,9 @@ auto-selects the liveliest fixture, so the win-prob bar will be moving.
 - Open the link in a second tab as a different name, lock a different call. Both
   names appear on the **shared leaderboard.** *"Your whole group in one board,
   live — this is the Sleeper-style party layer for the World Cup."*
+- Point at the badge **"shared · read from Solana"** and a board row's ↗ link.
+  *"No database — the board is literally read back off Solana. Every name here is
+  a real on-chain call; tap the arrow to see it on the explorer."*
 
 **[1:20–1:35] Settlement — provably fair**
 - Scroll to the **Provably fair** panel. If a match has finished, point at
