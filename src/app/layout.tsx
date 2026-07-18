@@ -1,5 +1,6 @@
 import './globals.css'
 import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
+import { PrivyLoader } from '@/components/privy'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 const display = Space_Grotesk({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-display' })
@@ -32,7 +33,9 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${display.variable} ${mono.variable} font-sans`}>{children}</body>
+      <body className={`${inter.variable} ${display.variable} ${mono.variable} font-sans`}>
+        <PrivyLoader>{children}</PrivyLoader>
+      </body>
     </html>
   )
 }

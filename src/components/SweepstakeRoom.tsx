@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { txline, readScore, readOdds, type Fixture, type Score, type Odds } from '@/lib/txline'
+import { usePrivyBridge, PrivySignIn } from '@/components/privy'
 
 type Pick = 'home' | 'draw' | 'away'
 const FLAG: Record<string, string> = {
@@ -58,6 +59,7 @@ export function SweepstakeRoom() {
   const [onchainShared, setOnchainShared] = useState(false)
   const [onchainCalls, setOnchainCalls] = useState<{ alias: string; pick: string; signature: string }[]>([])
   const poll = useRef<ReturnType<typeof setInterval> | null>(null)
+  const privy = usePrivyBridge() // null unless NEXT_PUBLIC_PRIVY_APP_ID is set
 
   // is the on-chain commit signer configured on this deploy?
   useEffect(() => {
@@ -148,7 +150,7 @@ export function SweepstakeRoom() {
       try {
         const c = await (await fetch('/api/commit', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ room, alias: name.trim(), fixture: `${sel.Participant1} v ${sel.Participant2}`, pick: pickLabel, exact: lk.exact ? `${lk.exact[0]}-${lk.exact[1]}` : '' }),
+          body: JSON.stringify({ room, alias: name.trim(), fixture: `${sel.Participant1} v ${sel.Participant2}`, pick: pickLabel, exact: lk.exact ? `${lk.exact[0]}-${lk.exact[1]}` : '', owner: privy?.address || '' }),
         })).json()
         setCommit(c?.signature ? { signature: c.signature, explorer: c.explorer } : null)
       } catch { setCommit(null) }
@@ -213,6 +215,7 @@ export function SweepstakeRoom() {
               🔥 {streak} streak
             </span>
           )}
+          <PrivySignIn />
         </div>
         <button onClick={share} className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 hover:border-pitch-600">
           {copied ? 'link copied ✓' : 'Invite friends ↗'}

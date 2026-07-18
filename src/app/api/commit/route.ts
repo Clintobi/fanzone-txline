@@ -21,10 +21,12 @@ export async function POST(req: NextRequest) {
   const fixture = clean(b.fixture || '', 40)
   const pick = clean(b.pick || '', 24)
   const exact = clean(b.exact || '', 8)
+  // optional: a Privy embedded-wallet address that OWNS this call (base58)
+  const owner = (b.owner || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 44)
   if (!alias || !pick) return NextResponse.json({ error: 'alias and pick required' }, { status: 400 })
 
   const stamp = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
-  const payload = `Fan Zone call | room=${room} | ${alias} calls ${fixture}: ${pick}${exact ? ` (${exact})` : ''} | locked ${stamp}`
+  const payload = `Fan Zone call | room=${room} | ${alias} calls ${fixture}: ${pick}${exact ? ` (${exact})` : ''} | locked ${stamp}${owner ? ` | owner=${owner}` : ''}`
   try {
     const res = await commitMemo(payload)
     return NextResponse.json(res)
