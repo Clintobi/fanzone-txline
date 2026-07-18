@@ -1,21 +1,24 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { txline, readScore, readOdds, type Fixture } from '@/lib/txline'
+import { txline, readScore, readOdds, type Fixture, type Score, type Odds } from '@/lib/txline'
 
 type Pick = 'home' | 'draw' | 'away'
 const FLAG: Record<string, string> = {
   France: '🇫🇷', England: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', Spain: '🇪🇸', Argentina: '🇦🇷', Brazil: '🇧🇷',
   Australia: '🇦🇺', Vietnam: '🇻🇳', Myanmar: '🇲🇲', 'New Zealand': '🇳🇿', India: '🇮🇳',
+  Liechtenstein: '🇱🇮', Gibraltar: '🇬🇮',
 }
 const flag = (t: string) => FLAG[t] || '⚽'
 const PICK_PTS = 100, EXACT_BONUS = 150
+const EMPTY_SCORE: Score = { h: 0, a: 0, status: 'Awaiting kickoff', live: false, finished: false, seq: 0 }
 
 export function SweepstakeRoom() {
   const [fixtures, setFixtures] = useState<Fixture[]>([])
   const [sel, setSel] = useState<Fixture | null>(null)
-  const [score, setScore] = useState({ h: 0, a: 0, status: 'Awaiting kickoff', live: false, finished: false })
-  const [odds, setOdds] = useState<{ home: number; draw: number; away: number } | null>(null)
+  const [score, setScore] = useState<Score>(EMPTY_SCORE)
+  const [odds, setOdds] = useState<Odds | null>(null)
+  const [featuredId, setFeaturedId] = useState<number | null>(null)
   const [room, setRoom] = useState('final')
   const [shared, setShared] = useState(false)
   const [board, setBoard] = useState<{ name: string; pts: number }[]>([])
@@ -33,17 +36,25 @@ export function SweepstakeRoom() {
     try { setName(localStorage.getItem('fz_name') || '') } catch {}
   }, [])
 
-  // fixtures — default the featured match to the latest-scheduled (the final)
+  // fixtures + featured match — the server scans odds/scores and hands us the
+  // liveliest real match, so the flagship win-prob bar is never a flat placeholder.
   useEffect(() => {
     (async () => {
       try {
-        await txline.authenticate()
-        const fx = await txline.getFixtures()
-        setFixtures(fx)
-        const byLatest = [...fx].sort((a, b) => +new Date(b.StartTime) - +new Date(a.StartTime))
-        const final = fx.find(f => /spain/i.test(f.Participant1 + f.Participant2) && /argentina/i.test(f.Participant1 + f.Participant2))
-        setSel(final || byLatest[0] || null)
-      } catch {}
+        const f = await txline.getFeatured()
+        setFixtures(f.fixtures)
+        setFeaturedId(f.featuredId)
+        setSel(f.fixtures.find(x => x.FixtureId === f.featuredId) || f.fixtures[0] || null)
+        setScore(f.score || EMPTY_SCORE)
+        setOdds(f.odds)
+      } catch {
+        // hard fallback: plain fixtures, default to latest-scheduled
+        try {
+          const fx = await txline.getFixtures()
+          setFixtures(fx)
+          setSel([...fx].sort((a, b) => +new Date(b.StartTime) - +new Date(a.StartTime))[0] || null)
+        } catch {}
+      }
     })()
   }, [])
 
@@ -52,15 +63,18 @@ export function SweepstakeRoom() {
   }, [])
   useEffect(() => { if (room) loadBoard(room) }, [room, loadBoard])
 
-  // poll live score + odds for the featured match
+  // poll live score + odds for the selected match
   useEffect(() => {
     if (!sel) return
     if (poll.current) clearInterval(poll.current)
     const tick = async () => {
       try {
         const [scoreRows, oddsRows] = await Promise.all([txline.getScoresSnapshot(sel.FixtureId), txline.getOddsSnapshot(sel.FixtureId)])
-        setScore(readScore(scoreRows))
-        setOdds(readOdds(oddsRows))
+        const s = readScore(scoreRows)
+        const o = readOdds(oddsRows)
+        setScore(s)
+        // keep the last real odds if a poll momentarily returns none for a live match
+        setOdds(prev => o ?? (s.finished ? null : prev))
       } catch {}
     }
     tick(); poll.current = setInterval(tick, 8000)
@@ -104,8 +118,8 @@ export function SweepstakeRoom() {
     else { navigator.clipboard?.writeText(shareLink); setCopied(true); setTimeout(() => setCopied(false), 1500) }
   }
 
-  const p = odds || { home: 0.34, draw: 0.33, away: 0.33 }
   const actualLabel = score.finished ? (score.h > score.a ? 'home' : score.h < score.a ? 'away' : 'draw') : null
+  const isFeatured = sel != null && sel.FixtureId === featuredId
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
@@ -134,7 +148,7 @@ export function SweepstakeRoom() {
             <div className="flex-1 flex flex-col items-center gap-2"><div className="w-10 h-10 rounded-full bg-slate-800" /><div className="h-3 w-16 bg-slate-800 rounded" /></div>
           </div>
           <div className="h-3 rounded-full bg-slate-800 mt-6" />
-          <p className="text-[11px] text-slate-600 mt-3">Loading the featured match from TxLINE…</p>
+          <p className="text-[11px] text-slate-600 mt-3">Scanning TxLINE for the liveliest match…</p>
         </div>
       )}
       {sel && (
@@ -143,12 +157,15 @@ export function SweepstakeRoom() {
             <span className={`text-xs px-2 py-0.5 rounded-full ${score.live ? 'bg-red-500/15 text-red-300' : 'bg-slate-800 text-slate-400'}`}>
               {score.live && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1.5 animate-pulse" />}{score.status}
             </span>
-            {fixtures.length > 1 && (
-              <select value={sel.FixtureId} onChange={e => setSel(fixtures.find(f => f.FixtureId === Number(e.target.value)) || sel)}
-                className="text-xs bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-400">
-                {fixtures.map(f => <option key={f.FixtureId} value={f.FixtureId}>{f.Participant1} v {f.Participant2}</option>)}
-              </select>
-            )}
+            <div className="flex items-center gap-2">
+              {isFeatured && <span className="text-[10px] text-pitch-400/80">✦ liveliest on TxLINE</span>}
+              {fixtures.length > 1 && (
+                <select value={sel.FixtureId} onChange={e => setSel(fixtures.find(f => f.FixtureId === Number(e.target.value)) || sel)}
+                  className="text-xs bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-400">
+                  {fixtures.map(f => <option key={f.FixtureId} value={f.FixtureId}>{f.Participant1} v {f.Participant2}</option>)}
+                </select>
+              )}
+            </div>
           </div>
           <div className="flex items-center justify-center gap-6 py-2">
             <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant1)}</div><div className="font-display text-sm text-slate-200">{sel.Participant1}</div></div>
@@ -156,21 +173,31 @@ export function SweepstakeRoom() {
             <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant2)}</div><div className="font-display text-sm text-slate-200">{sel.Participant2}</div></div>
           </div>
 
-          {/* live win-probability bar (from TxLINE odds) */}
+          {/* live win-probability bar — real TxLINE 1X2, or an honest empty state (never a fake flat bar) */}
           <div className="mt-4">
             <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1">
-              <span>win probability {odds ? '· live from TxLINE odds' : '· odds post near kickoff'}</span>
+              <span>win probability</span>
+              <span className={odds ? 'text-pitch-400/80' : 'text-slate-600'}>
+                {odds ? 'live · de-margined from TxLINE odds' : 'awaiting TxLINE 1X2 market'}
+              </span>
             </div>
-            <div className="h-3 rounded-full overflow-hidden bg-slate-800 flex">
-              <div className="bg-pitch-500 transition-all" style={{ width: `${p.home * 100}%` }} title={`${sel.Participant1} ${(p.home*100).toFixed(0)}%`} />
-              <div className="bg-slate-500 transition-all" style={{ width: `${p.draw * 100}%` }} title={`Draw ${(p.draw*100).toFixed(0)}%`} />
-              <div className="bg-amber-500 transition-all" style={{ width: `${p.away * 100}%` }} title={`${sel.Participant2} ${(p.away*100).toFixed(0)}%`} />
-            </div>
-            <div className="flex justify-between text-[11px] mt-1 font-mono">
-              <span className="text-pitch-300">{sel.Participant1} {(p.home*100).toFixed(0)}%</span>
-              <span className="text-slate-400">Draw {(p.draw*100).toFixed(0)}%</span>
-              <span className="text-amber-300">{sel.Participant2} {(p.away*100).toFixed(0)}%</span>
-            </div>
+            {odds ? (
+              <>
+                <div className="h-3 rounded-full overflow-hidden bg-slate-800 flex">
+                  <div className="bg-pitch-500 transition-all" style={{ width: `${odds.home * 100}%` }} title={`${sel.Participant1} ${(odds.home*100).toFixed(0)}%`} />
+                  <div className="bg-slate-500 transition-all" style={{ width: `${odds.draw * 100}%` }} title={`Draw ${(odds.draw*100).toFixed(0)}%`} />
+                  <div className="bg-amber-500 transition-all" style={{ width: `${odds.away * 100}%` }} title={`${sel.Participant2} ${(odds.away*100).toFixed(0)}%`} />
+                </div>
+                <div className="flex justify-between text-[11px] mt-1 font-mono">
+                  <span className="text-pitch-300">{sel.Participant1} {(odds.home*100).toFixed(0)}%</span>
+                  <span className="text-slate-400">Draw {(odds.draw*100).toFixed(0)}%</span>
+                  <span className="text-amber-300">{sel.Participant2} {(odds.away*100).toFixed(0)}%</span>
+                </div>
+              </>
+            ) : (
+              <div className="h-3 rounded-full bg-[repeating-linear-gradient(45deg,#1e293b,#1e293b_8px,#0f172a_8px,#0f172a_16px)]"
+                title="TxLINE hasn't posted a 1X2 market for this fixture yet" />
+            )}
           </div>
         </div>
       )}

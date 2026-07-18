@@ -1,57 +1,86 @@
-# Fan Zone — Live World Cup Companion
+# Fan Zone — Final Sweepstake
 
-**TxODDS × Solana World Cup Hackathon · Consumer and Fan Experiences track**
+**TxODDS × Solana World Cup Hackathon · Consumer & Fan Experiences track**
 
-A fan-facing second-screen app that turns TxLINE's real-time World Cup feed into
-an engaging experience: **live scores that update the instant they happen**, a
-live match-event feed, and a casual **predict-the-winner** game with points and
-a leaderboard. No wallet, no money — pure engagement.
+Spin up a World Cup **sweepstake room**, call the result, and watch a live
+win-probability bar move on real TxLINE odds — a shared, invite-a-friend
+leaderboard your whole group plays in. No wallet, no money, no friction: open the
+link and play.
 
 **Live:** https://fanzone-txline.vercel.app
 
 ## What it does
 
-- **Live match center** — pick any fixture; the app subscribes to TxLINE's
-  Server-Sent Events score stream and updates the score + event feed in real time
-  during the match. No refresh.
-- **Predict the winner** — call Home / Draw / Away before kickoff, lock it in,
-  earn points, keep a streak.
-- **Leaderboard** — compete with other fans; your score persists locally.
+- **Featured match, always alive.** The server scans TxLINE's fixtures, odds and
+  scores and features the *liveliest real match* — one with a genuine 1X2 market
+  and, ideally, in-play with goals. So the flagship win-probability bar shows
+  **real de-margined probabilities**, not a placeholder.
+- **Call the result.** Pick Home / Draw / Away (+ an optional exact score for a
+  bonus), lock it in, and it grades automatically off the real TxLINE full-time
+  result.
+- **Bring your group.** Every room has an invite link and a leaderboard. Connect
+  a KV store (see [`SETUP-KV.md`](./SETUP-KV.md)) and the board is durable and
+  shared across everyone in the room.
 
-## Core idea & highlights
+## Data provenance (what's real, and what isn't)
 
-Most fans watch with a phone in hand. Fan Zone is the companion screen: it reacts
-to what's happening on the pitch the moment TxLINE publishes it, and layers a
-light, replayable prediction game on top — the kind of low-friction, mainstream
-experience that keeps fans in the app across all 104 matches.
+Honesty matters more than a flashy claim, so here's exactly how data flows:
 
-- Instant reactivity via SSE (no polling).
-- Zero onboarding friction — open and play, no wallet.
-- Clean, mobile-first UI.
+- **Live, server-side.** All TxLINE calls go through a server proxy
+  (`src/app/api/txline/…`) that attaches a guest JWT + a free-tier subscription
+  token and hits `txline-dev.txodds.com`. The token never ships to the browser.
+  Fixtures, scores and de-margined 1X2 odds are the real feed.
+- **Win-probability = real or nothing.** The bar renders only a genuine TxLINE
+  1X2 market (`readOdds`, `src/lib/normalize.ts`). If a fixture has no 1X2 posted
+  yet, the UI shows an explicit *"awaiting TxLINE 1X2 market"* state — it never
+  fabricates a flat bar.
+- **Graceful degradation, clearly bounded.** The dev feed is rate-limited/flaky,
+  so the fixtures proxy falls back to the last-good list (or a 2-fixture seed) to
+  avoid an empty screen. This is the degraded path only, never presented as live.
+- **Leaderboard.** Durable + shared when `KV_REST_API_*` / `UPSTASH_REDIS_REST_*`
+  is set; otherwise an in-memory fallback the UI honestly labels `local (connect
+  KV to share)`.
 
-## TxLINE endpoints used
+## Scope (what this is, and isn't)
 
-- `POST /auth/guest/start` — guest JWT.
-- `GET /api/fixtures/snapshot` — the World Cup fixture list.
-- `GET /api/scores/stream` (SSE) — real-time score + match-event updates.
+Fan Zone is deliberately a **zero-friction, no-stakes** fan experience — no
+wallet connect, no tokens, no on-chain settlement. The Solana tie-in is the
+hackathon's data layer (TxLINE's feed is activated via an on-chain subscribe and
+carries on-chain Merkle attestations). Surfacing that settlement proof in-product
+is the natural next step; today the focus is the mainstream, phone-first game.
 
-(Data access uses a free-tier API token obtained via TxLINE's on-chain subscribe
-flow; sign-up is through Solana per the track requirement.)
+## Architecture
+
+```
+browser ── /api/txline/featured ──┐   scans fixtures+odds+scores, picks the
+        ── /api/txline/<path>  ───┤   liveliest real match (server-side)
+        ── /api/room           ───┘   room leaderboard (KV or in-memory)
+                     │
+             src/lib/txline-server.ts  (guest JWT + token, server-only)
+                     │
+             txline-dev.txodds.com
+```
+
+- `src/lib/normalize.ts` — pure score/odds normalizers, shared client + server.
+- `src/lib/txline-server.ts` — server-only auth + upstream fetch (cached JWT).
+- `src/app/api/txline/featured/route.ts` — the liveliest-match scanner.
+- `src/components/SweepstakeRoom.tsx` — the room UI.
 
 ## Run it
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000
-npm run build    # static export -> out/
+npm run build    # production build
 ```
 
 ## TxLINE API feedback
 
 **Liked:** the single normalised JSON schema across fixtures/scores/odds made it
-trivial to go from auth → live scores; the SSE stream is genuinely real-time and
-the demargined odds book hands you clean implied probabilities. **Friction:**
-data access requires an on-chain subscribe + `/api/token/activate` before the
-API returns anything (a 403 "Missing API token" until then — not obvious from a
-first read); pre-match snapshots are sparse/transient, so a client needs to cache
-the last-seen values and lean on the stream during live play.
+trivial to go from auth → live scores; the de-margined odds book hands you clean
+implied probabilities. **Friction:** data access requires an on-chain subscribe +
+`/api/token/activate` before the API returns anything (a 403 "Missing API token"
+until then — not obvious on first read); the dev feed is rate-limited and its
+pre-match odds/scores are sparse and transient per fixture, so a client has to
+scan across fixtures and cache the last-seen values (which is exactly what
+`/api/txline/featured` does).

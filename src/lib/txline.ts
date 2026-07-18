@@ -1,29 +1,25 @@
 // Client TxLINE access — routed through this app's server-side proxy at /api/txline.
 // The browser never talks to TxLINE directly, so the API token stays server-only and
-// a CloudFront blip on one request can't leave the UI stuck on "Loading fixtures…".
-// (Live scores are polled from /api/txline/scores/snapshot by the UI; this keeps the
-// data path reliable on Vercel's serverless runtime, where long-lived SSE is flaky.)
+// a rate-limit blip on one request can't leave the UI stuck on "Loading fixtures…".
+// Live data is polled from the proxy; pure normalizers live in ./normalize and are
+// shared with the server-side featured scanner.
 
-export type Fixture = {
-  FixtureId: number
-  CompetitionId: number
-  StartTime: string | number
-  Participant1: string
-  Participant2: string
-  Participant1IsHome: boolean
-  GameState?: number | string
-  Status?: string
-}
+import { readScore, readOdds, type Fixture, type ScoreRecord, type Score, type Odds } from './normalize'
 
-export type ScoreRecord = {
-  FixtureId?: number
-  Seq?: number
-  Ts?: number
-  StatusId?: number
-  Period?: number
-  Action?: string
-  GameState?: string
-  Stats?: Record<string, number>
+export { readScore, readOdds }
+export type { Fixture, ScoreRecord, Score, Odds }
+
+// Shape returned by /api/txline/featured — the server-picked liveliest real match.
+export type Featured = {
+  txlineConfigured: boolean
+  scannedAt: number
+  usingFallback: boolean
+  fixtures: Fixture[]
+  featuredId: number
+  score: Score
+  odds: Odds | null
+  oddsLive: boolean
+  source: 'live' | 'final' | 'scheduled' | 'fallback'
 }
 
 const BASE = '/api/txline'
@@ -35,8 +31,14 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 export class TxlineClient {
-  // kept for API compatibility with existing callers; auth now happens server-side.
+  // kept for API compatibility with existing callers; auth happens server-side.
   async authenticate(): Promise<void> { /* no-op: the proxy holds the guest JWT + token */ }
+
+  // One call that returns all fixtures plus the server-selected featured match
+  // (already scored for liveness) with its current score + real 1X2 odds.
+  async getFeatured(): Promise<Featured> {
+    return getJson<Featured>('featured')
+  }
 
   async getFixtures(competitionId?: number): Promise<Fixture[]> {
     const q = competitionId ? `?competitionId=${competitionId}` : ''
@@ -53,32 +55,6 @@ export class TxlineClient {
     const data = await getJson<any[]>(`odds/snapshot/${fixtureId}`)
     return Array.isArray(data) ? data : []
   }
-}
-
-// Normalize raw TxLINE score records into home/away goals + a live/finished status.
-// Goal stat keys 1,2 = the two teams' goals.
-export function readScore(rows: ScoreRecord[]): { h: number; a: number; status: string; live: boolean; finished: boolean } {
-  if (!rows.length) return { h: 0, a: 0, status: 'Awaiting kickoff', live: false, finished: false }
-  const withGoals = rows.filter(r => r.Stats && r.Stats['1'] != null && r.Stats['2'] != null)
-  const latest = (withGoals.length ? withGoals : rows).slice().sort((a, b) => (b.Seq ?? 0) - (a.Seq ?? 0))[0]
-  const h = Number(latest?.Stats?.['1'] ?? 0)
-  const a = Number(latest?.Stats?.['2'] ?? 0)
-  const statusId = latest?.StatusId ?? 0
-  const finished = statusId >= 100 || latest?.Action === 'game_finalised'
-  const live = statusId > 0 && statusId < 100
-  return { h, a, status: finished ? 'Full time' : live ? 'Live' : 'Awaiting kickoff', live, finished }
-}
-
-// Latest demargined 1X2 win-probabilities (home/draw/away) from an odds snapshot.
-export function readOdds(rows: any[]): { home: number; draw: number; away: number } | null {
-  if (!Array.isArray(rows)) return null
-  const x12 = rows.filter(o => (o.SuperOddsType || '').includes('1X2')
-    && Array.isArray(o.Pct) && o.Pct.length >= 3 && o.Pct.every((x: any) => x !== 'NA' && x != null && x !== ''))
-  const rec = x12[x12.length - 1]
-  if (!rec) return null
-  const [h, d, a] = rec.Pct.map(Number)
-  const s = h + d + a || 1
-  return { home: h / s, draw: d / s, away: a / s }
 }
 
 export const txline = new TxlineClient()
