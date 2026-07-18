@@ -55,6 +55,8 @@ export function SweepstakeRoom() {
   const [settle, setSettle] = useState<{ verified: boolean; root?: string; seq?: number; programExplorer?: string; detail?: string } | null>(null)
   const [streak, setStreak] = useState(0)
   const [callCopied, setCallCopied] = useState(false)
+  const [onchainShared, setOnchainShared] = useState(false)
+  const [onchainCalls, setOnchainCalls] = useState<{ alias: string; pick: string; signature: string }[]>([])
   const poll = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // is the on-chain commit signer configured on this deploy?
@@ -95,7 +97,10 @@ export function SweepstakeRoom() {
   }, [])
 
   const loadBoard = useCallback(async (r: string) => {
-    try { const d = await (await fetch(`/api/room?room=${encodeURIComponent(r)}`)).json(); setBoard(d.board || []); setShared(!!d.shared) } catch {}
+    try {
+      const d = await (await fetch(`/api/room?room=${encodeURIComponent(r)}`)).json()
+      setBoard(d.board || []); setShared(!!d.shared); setOnchainShared(!!d.onchainShared); setOnchainCalls(d.onchain || [])
+    } catch {}
   }, [])
   useEffect(() => { if (room) loadBoard(room) }, [room, loadBoard])
 
@@ -199,8 +204,9 @@ export function SweepstakeRoom() {
           <span className="text-xs px-2.5 py-1 rounded-full bg-pitch-950 border border-pitch-800 text-pitch-300">
             Sweepstake room · <b>{room}</b>
           </span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full ${shared ? 'bg-pitch-900/50 text-pitch-300' : 'bg-slate-800 text-slate-500'}`}>
-            {shared ? 'shared leaderboard' : 'local (connect KV to share)'}
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${shared || onchainShared ? 'bg-pitch-900/50 text-pitch-300' : 'bg-slate-800 text-slate-500'}`}
+            title={onchainShared ? 'Every call is a Memo tx — the board is read straight from Solana, shared across all devices' : undefined}>
+            {onchainShared ? 'shared · read from Solana' : shared ? 'shared leaderboard' : 'local (connect KV to share)'}
           </span>
           {streak > 0 && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300" title="correct calls in a row">
@@ -333,11 +339,21 @@ export function SweepstakeRoom() {
           <p className="text-xs text-slate-600">No calls yet. Lock a prediction and share the room link to fill it up.</p>
         ) : (
           <div className="space-y-1.5">
-            {board.map((r, i) => (
-              <div key={r.name + i} className={`flex items-center justify-between text-sm px-3 py-1.5 rounded ${r.name === name.trim() ? 'bg-pitch-950/40 text-pitch-200' : 'text-slate-400'}`}>
-                <span>{i + 1}. {r.name}</span><span className="tabular-nums">{r.pts}</span>
-              </div>
-            ))}
+            {board.map((r, i) => {
+              const call = onchainCalls.find(c => c.alias === r.name)
+              return (
+                <div key={r.name + i} className={`flex items-center justify-between text-sm px-3 py-1.5 rounded ${r.name === name.trim() ? 'bg-pitch-950/40 text-pitch-200' : 'text-slate-400'}`}>
+                  <span className="truncate">
+                    {i + 1}. {r.name}
+                    {call && <span className="text-slate-600"> · called {call.pick}</span>}
+                  </span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    {call && <a href={`https://explorer.solana.com/tx/${call.signature}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-600 hover:text-pitch-300" title="this call, on Solana">↗</a>}
+                    <span className="tabular-nums">{r.pts}</span>
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

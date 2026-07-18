@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { submitScore, leaderboard, kvLive } from '@/lib/kv'
+import { roomCallsOnChain, commitEnabled } from '@/lib/solana'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -8,7 +9,20 @@ const clean = (s: string) => (s || '').slice(0, 24).replace(/[^\w .\-]/g, '').tr
 
 export async function GET(req: NextRequest) {
   const room = clean(req.nextUrl.searchParams.get('room') || 'final')
-  return NextResponse.json({ room, shared: kvLive, board: await leaderboard(room) })
+  // The board is genuinely shared across devices with no database: every call is
+  // an on-chain Memo, so we read the room's callers straight from Solana and merge
+  // them with any local/KV points. Everyone who called shows up, everywhere.
+  const [board, onchain] = await Promise.all([leaderboard(room), roomCallsOnChain(room)])
+  const byName = new Map<string, number>(board.map(r => [r.name, r.pts]))
+  for (const c of onchain) if (!byName.has(c.alias)) byName.set(c.alias, 0)
+  const merged = [...byName.entries()].map(([name, pts]) => ({ name, pts })).sort((a, b) => b.pts - a.pts)
+  return NextResponse.json({
+    room,
+    shared: kvLive || onchain.length > 0,
+    onchainShared: commitEnabled(),
+    board: merged,
+    onchain,
+  })
 }
 
 export async function POST(req: NextRequest) {

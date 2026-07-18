@@ -76,3 +76,43 @@ export async function signerBalanceSol(): Promise<number | null> {
   if (!kp) return null
   try { return (await connection().getBalance(kp.publicKey)) / LAMPORTS_PER_SOL } catch { return null }
 }
+
+// --- read the room's calls back OFF-CHAIN-FREE, straight from Solana -----------
+// The leaderboard is genuinely shared across devices with no database: every call
+// is a Memo tx from the signer, so we reconstruct a room by reading the signer's
+// transactions and parsing the memos. No KV, no account — the board IS on-chain.
+
+export type OnChainCall = { alias: string; pick: string; fixture: string; signature: string }
+const callsCache = new Map<string, { at: number; calls: OnChainCall[] }>()
+const CALLS_TTL = 12_000
+
+export async function roomCallsOnChain(room: string, limit = 40): Promise<OnChainCall[]> {
+  const kp = loadSigner()
+  if (!kp) return []
+  const hit = callsCache.get(room)
+  if (hit && Date.now() - hit.at < CALLS_TTL) return hit.calls
+  try {
+    const sigs = await connection().getSignaturesForAddress(kp.publicKey, { limit })
+    if (!sigs.length) return []
+    const txs = await connection().getParsedTransactions(sigs.map(s => s.signature), { maxSupportedTransactionVersion: 0 })
+    const seen = new Set<string>()
+    const calls: OnChainCall[] = []
+    txs.forEach((t, i) => {
+      const logs = (t?.meta?.logMessages || []).join(' ')
+      const m = logs.match(/Memo \(len \d+\): "(.*?)"/)
+      if (!m) return
+      // Fan Zone call | room=final | <alias> calls <fixture>: <pick>(exact) | locked ...
+      const p = m[1].match(/room=([^|]+?)\s*\|\s*(.+?) calls (.+?): ([^|]+?)(?:\s*\||$)/)
+      if (!p) return
+      if (p[1].trim() !== room) return
+      const alias = p[2].trim().slice(0, 24)
+      if (seen.has(alias)) return // latest call per alias wins (sigs are newest-first)
+      seen.add(alias)
+      calls.push({ alias, fixture: p[3].trim(), pick: p[4].replace(/\s*\(.*\)\s*/, '').trim(), signature: sigs[i].signature })
+    })
+    callsCache.set(room, { at: Date.now(), calls })
+    return calls
+  } catch {
+    return hit?.calls ?? []
+  }
+}
