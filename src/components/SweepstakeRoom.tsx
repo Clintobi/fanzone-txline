@@ -13,6 +13,29 @@ const flag = (t: string) => FLAG[t] || '⚽'
 const PICK_PTS = 100, EXACT_BONUS = 150
 const EMPTY_SCORE: Score = { h: 0, a: 0, status: 'Awaiting kickoff', live: false, finished: false, seq: 0 }
 
+// eased count-up so numbers tick rather than jump — the "live product" feel
+function useCountUp(target: number, ms = 600) {
+  const [v, setV] = useState(target)
+  const from = useRef(target)
+  useEffect(() => {
+    const start = from.current, delta = target - start
+    if (delta === 0) return
+    const t0 = performance.now()
+    let raf = 0
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / ms)
+      setV(start + delta * (1 - Math.pow(1 - p, 3)))
+      if (p < 1) raf = requestAnimationFrame(step)
+      else from.current = target
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, ms])
+  return v
+}
+const AnimatedPct = ({ value }: { value: number }) => <>{Math.round(useCountUp(value * 100))}%</>
+const AnimatedInt = ({ value }: { value: number }) => <>{Math.round(useCountUp(value))}</>
+
 export function SweepstakeRoom() {
   const [fixtures, setFixtures] = useState<Fixture[]>([])
   const [sel, setSel] = useState<Fixture | null>(null)
@@ -30,12 +53,17 @@ export function SweepstakeRoom() {
   const [chainOn, setChainOn] = useState(false)
   const [commit, setCommit] = useState<{ pending?: boolean; signature?: string; explorer?: string } | null>(null)
   const [settle, setSettle] = useState<{ verified: boolean; root?: string; seq?: number; programExplorer?: string; detail?: string } | null>(null)
+  const [streak, setStreak] = useState(0)
+  const [callCopied, setCallCopied] = useState(false)
   const poll = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // is the on-chain commit signer configured on this deploy?
   useEffect(() => {
     fetch('/api/commit').then(r => r.json()).then(d => setChainOn(!!d.enabled)).catch(() => {})
   }, [])
+
+  // correct-call streak (persisted locally) — the cheap, high-retention mechanic
+  useEffect(() => { try { setStreak(Number(localStorage.getItem('fz_streak') || 0)) } catch {} }, [])
 
   // room id + identity from URL / storage
   useEffect(() => {
@@ -122,14 +150,29 @@ export function SweepstakeRoom() {
     }
   }
 
-  // when the match finishes, re-grade a pending pick and push the result
+  // when the match finishes, re-grade a pending pick, update streak, push result
   useEffect(() => {
     if (locked && score.finished && name.trim()) {
       const pts = grade(locked)
+      setStreak(s => { const n = pts > 0 ? s + 1 : 0; try { localStorage.setItem('fz_streak', String(n)) } catch {} ; return n })
       fetch('/api/room', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room, name: name.trim(), pts }) })
         .then(r => r.json()).then(d => { setBoard(d.board || []); setShared(!!d.shared) }).catch(() => {})
     }
   }, [score.finished]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // build + share a personalized "I called it" link (unfurls the /api/card OG image)
+  function shareCall() {
+    if (!locked || !sel) return
+    const pickLabel = locked.pick === 'home' ? sel.Participant1 : locked.pick === 'away' ? sel.Participant2 : 'Draw'
+    const v = score.finished ? (grade(locked) > 0 ? 'won' : 'lost') : 'locked'
+    const q = new URLSearchParams({ by: name.trim() || 'A fan', pick: pickLabel, fx: `${sel.Participant1} v ${sel.Participant2}`, room, v })
+    if (locked.exact) q.set('sc', `${locked.exact[0]}-${locked.exact[1]}`)
+    if (commit?.signature) q.set('tx', commit.signature)
+    const url = `${window.location.origin}/call?${q.toString()}`
+    const text = `I called ${pickLabel} in the World Cup Final Sweepstake — locked on-chain before kickoff. Beat my call:`
+    if (navigator.share) { navigator.share({ title: 'Fan Zone — my call', text, url }).catch(() => {}) }
+    else { navigator.clipboard?.writeText(url); setCallCopied(true); setTimeout(() => setCallCopied(false), 1600) }
+  }
 
   // when the featured match is finished, verify its result against TxLINE's on-chain proof
   useEffect(() => {
@@ -159,6 +202,11 @@ export function SweepstakeRoom() {
           <span className={`text-[10px] px-2 py-0.5 rounded-full ${shared ? 'bg-pitch-900/50 text-pitch-300' : 'bg-slate-800 text-slate-500'}`}>
             {shared ? 'shared leaderboard' : 'local (connect KV to share)'}
           </span>
+          {streak > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300" title="correct calls in a row">
+              🔥 {streak} streak
+            </span>
+          )}
         </div>
         <button onClick={share} className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 hover:border-pitch-600">
           {copied ? 'link copied ✓' : 'Invite friends ↗'}
@@ -196,7 +244,7 @@ export function SweepstakeRoom() {
           </div>
           <div className="flex items-center justify-center gap-6 py-2">
             <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant1)}</div><div className="font-display text-sm text-slate-200">{sel.Participant1}</div></div>
-            <div className="font-mono text-5xl font-bold tabular-nums">{score.h}<span className="text-slate-600 mx-2">–</span>{score.a}</div>
+            <div className="font-mono text-5xl font-bold tabular-nums"><AnimatedInt value={score.h} /><span className="text-slate-600 mx-2">–</span><AnimatedInt value={score.a} /></div>
             <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant2)}</div><div className="font-display text-sm text-slate-200">{sel.Participant2}</div></div>
           </div>
 
@@ -211,14 +259,14 @@ export function SweepstakeRoom() {
             {odds ? (
               <>
                 <div className="h-3 rounded-full overflow-hidden bg-slate-800 flex">
-                  <div className="bg-pitch-500 transition-all" style={{ width: `${odds.home * 100}%` }} title={`${sel.Participant1} ${(odds.home*100).toFixed(0)}%`} />
-                  <div className="bg-slate-500 transition-all" style={{ width: `${odds.draw * 100}%` }} title={`Draw ${(odds.draw*100).toFixed(0)}%`} />
-                  <div className="bg-amber-500 transition-all" style={{ width: `${odds.away * 100}%` }} title={`${sel.Participant2} ${(odds.away*100).toFixed(0)}%`} />
+                  <div className="bg-pitch-500 transition-all duration-700 ease-out" style={{ width: `${odds.home * 100}%` }} title={`${sel.Participant1} ${(odds.home*100).toFixed(0)}%`} />
+                  <div className="bg-slate-500 transition-all duration-700 ease-out" style={{ width: `${odds.draw * 100}%` }} title={`Draw ${(odds.draw*100).toFixed(0)}%`} />
+                  <div className="bg-amber-500 transition-all duration-700 ease-out" style={{ width: `${odds.away * 100}%` }} title={`${sel.Participant2} ${(odds.away*100).toFixed(0)}%`} />
                 </div>
                 <div className="flex justify-between text-[11px] mt-1 font-mono">
-                  <span className="text-pitch-300">{sel.Participant1} {(odds.home*100).toFixed(0)}%</span>
-                  <span className="text-slate-400">Draw {(odds.draw*100).toFixed(0)}%</span>
-                  <span className="text-amber-300">{sel.Participant2} {(odds.away*100).toFixed(0)}%</span>
+                  <span className="text-pitch-300">{sel.Participant1} <AnimatedPct value={odds.home} /></span>
+                  <span className="text-slate-400">Draw <AnimatedPct value={odds.draw} /></span>
+                  <span className="text-amber-300">{sel.Participant2} <AnimatedPct value={odds.away} /></span>
                 </div>
               </>
             ) : (
@@ -266,6 +314,11 @@ export function SweepstakeRoom() {
                 </a>
               )}
             </div>
+          )}
+          {locked && (
+            <button onClick={shareCall} className="mt-3 text-xs px-3 py-1.5 rounded-lg border border-pitch-700 text-pitch-200 hover:bg-pitch-950 transition">
+              {callCopied ? 'link copied ✓' : 'Share my call ↗'}
+            </button>
           )}
         </div>
       )}

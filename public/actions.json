@@ -1,0 +1,6 @@
+{
+  "rules": [
+    { "pathPattern": "/call-blink", "apiPath": "/api/actions/call" },
+    { "pathPattern": "/api/actions/**", "apiPath": "/api/actions/**" }
+  ]
+}
