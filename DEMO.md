@@ -26,7 +26,13 @@ auto-selects the liveliest fixture, so the win-prob bar will be moving.
   on Solana. Your whole room's picks are locked on-chain before kickoff, so nobody
   can change theirs after a goal goes in."* Show the real tx on the Solana Explorer.
 
-**[0:35–0:55] It's real — show the data**
+**[0:30–0:42] The viral hook — share your call**
+- Tap **Share my call ↗**. *"One tap makes a card — 'Buchi called France ✓ verified
+  on-chain' — that unfurls in any group chat or X."* Show the `/call` link / the card.
+  *"Your friends tap it, land in the same room, and try to beat your call. No wallet,
+  no app install — that's the growth loop."* (Optionally show the 🔥 streak chip.)
+
+**[0:42–0:55] It's real — show the data**
 - Open the fixture dropdown, switch to another match. *"Every fixture here is the
   live TxLINE snapshot — when a match has no 1X2 posted yet, we say so instead of
   faking a bar."* (Switch to one showing the striped "awaiting 1X2" state to prove
@@ -47,10 +53,17 @@ auto-selects the liveliest fixture, so the win-prob bar will be moving.
   our app' — it's verified from TxLINE's own on-chain Merkle proof, the same one
   TxODDS anchors on Solana."*
 
-**[1:35–1:45] Close**
+**[1:35–1:48] Bleeding edge — the Blink (optional flex)**
+- If you have Phantom/Backpack installed: paste
+  `https://dial.to/?action=solana-action:https://fanzone-txline.vercel.app/api/actions/call`
+  into the browser (or an X post). *"The whole call is also a Solana Blink — you can
+  lock your pick straight from a tweet, wallet-signed. Same game, meet people where
+  they already are."*
+
+**[1:48–2:00] Close**
 - Point at "Host a branded room": *"Rooms are the product — sponsored sweepstakes,
   prize pools, branded themes. Zero-friction to play, provably fair on Solana,
-  live on TxLINE's World Cup feed."*
+  live on TxLINE's World Cup feed, and it spreads itself."*
 - End on the moving win-prob bar.
 
 ---
