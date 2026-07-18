@@ -125,6 +125,18 @@ export function SweepstakeRoom() {
       </div>
 
       {/* featured match + win-prob */}
+      {!sel && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 animate-pulse">
+          <div className="h-4 w-28 bg-slate-800 rounded mb-6" />
+          <div className="flex items-center justify-center gap-6 py-2">
+            <div className="flex-1 flex flex-col items-center gap-2"><div className="w-10 h-10 rounded-full bg-slate-800" /><div className="h-3 w-16 bg-slate-800 rounded" /></div>
+            <div className="h-10 w-20 bg-slate-800 rounded" />
+            <div className="flex-1 flex flex-col items-center gap-2"><div className="w-10 h-10 rounded-full bg-slate-800" /><div className="h-3 w-16 bg-slate-800 rounded" /></div>
+          </div>
+          <div className="h-3 rounded-full bg-slate-800 mt-6" />
+          <p className="text-[11px] text-slate-600 mt-3">Loading the featured match from TxLINE…</p>
+        </div>
+      )}
       {sel && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
           <div className="flex items-center justify-between mb-4">
