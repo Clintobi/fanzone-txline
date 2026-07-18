@@ -54,7 +54,10 @@ export async function GET(req: NextRequest) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 26, color: '#94a3b8' }}>
-          <span style={{ padding: '10px 18px', borderRadius: 999, background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.28)', color: '#4ade80' }}>✓ verified on-chain</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderRadius: 999, background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.28)', color: '#4ade80' }}>
+            <span style={{ width: 14, height: 14, borderRadius: 999, background: '#4ade80', display: 'flex' }} />
+            verified on-chain
+          </span>
           <span>Call the Final. Bring your group. → fanzone-txline.vercel.app</span>
         </div>
       </div>
