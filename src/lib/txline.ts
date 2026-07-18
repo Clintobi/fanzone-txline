@@ -69,4 +69,16 @@ export function readScore(rows: ScoreRecord[]): { h: number; a: number; status: 
   return { h, a, status: finished ? 'Full time' : live ? 'Live' : 'Awaiting kickoff', live, finished }
 }
 
+// Latest demargined 1X2 win-probabilities (home/draw/away) from an odds snapshot.
+export function readOdds(rows: any[]): { home: number; draw: number; away: number } | null {
+  if (!Array.isArray(rows)) return null
+  const x12 = rows.filter(o => (o.SuperOddsType || '').includes('1X2')
+    && Array.isArray(o.Pct) && o.Pct.length >= 3 && o.Pct.every((x: any) => x !== 'NA' && x != null && x !== ''))
+  const rec = x12[x12.length - 1]
+  if (!rec) return null
+  const [h, d, a] = rec.Pct.map(Number)
+  const s = h + d + a || 1
+  return { home: h / s, draw: d / s, away: a / s }
+}
+
 export const txline = new TxlineClient()

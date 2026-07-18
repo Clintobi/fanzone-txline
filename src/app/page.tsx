@@ -1,4 +1,4 @@
-import { LiveMatchCenter } from '@/components/LiveMatchCenter'
+import { SweepstakeRoom } from '@/components/SweepstakeRoom'
 
 export default function Home() {
   return (
@@ -20,19 +20,20 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pitch-950 border border-pitch-800 text-pitch-300 text-xs mb-5">
             <span className="w-2 h-2 rounded-full bg-pitch-400 animate-pulse" />
-            Live scores from TxLINE — updates the instant they happen
+            Final Sweepstake — live win-probability from TxLINE odds
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-            The World Cup, in your hand.
+            Call the Final. Bring your group.
           </h2>
           <p className="text-slate-400 max-w-2xl">
-            Follow every match live, call the winner before kickoff, build a streak, and
-            climb the leaderboard against other fans — powered by TxLINE&apos;s real-time feed.
+            Spin up a sweepstake room, call the score, and watch the win-probability bar swing on
+            every real goal — a shared leaderboard your whole group plays in, powered by TxLINE&apos;s
+            live odds and scores.
           </p>
         </div>
       </section>
 
-      <LiveMatchCenter />
+      <SweepstakeRoom />
 
       <footer className="border-t border-slate-800 mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-xs text-slate-600 flex flex-wrap justify-between gap-2">
