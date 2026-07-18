@@ -139,9 +139,9 @@ export function SweepstakeRoom() {
             )}
           </div>
           <div className="flex items-center justify-center gap-6 py-2">
-            <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant1)}</div><div className="text-sm text-slate-300">{sel.Participant1}</div></div>
-            <div className="text-5xl font-bold tabular-nums">{score.h}<span className="text-slate-600 mx-2">–</span>{score.a}</div>
-            <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant2)}</div><div className="text-sm text-slate-300">{sel.Participant2}</div></div>
+            <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant1)}</div><div className="font-display text-sm text-slate-200">{sel.Participant1}</div></div>
+            <div className="font-mono text-5xl font-bold tabular-nums">{score.h}<span className="text-slate-600 mx-2">–</span>{score.a}</div>
+            <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant2)}</div><div className="font-display text-sm text-slate-200">{sel.Participant2}</div></div>
           </div>
 
           {/* live win-probability bar (from TxLINE odds) */}
@@ -154,7 +154,7 @@ export function SweepstakeRoom() {
               <div className="bg-slate-500 transition-all" style={{ width: `${p.draw * 100}%` }} title={`Draw ${(p.draw*100).toFixed(0)}%`} />
               <div className="bg-amber-500 transition-all" style={{ width: `${p.away * 100}%` }} title={`${sel.Participant2} ${(p.away*100).toFixed(0)}%`} />
             </div>
-            <div className="flex justify-between text-[11px] mt-1">
+            <div className="flex justify-between text-[11px] mt-1 font-mono">
               <span className="text-pitch-300">{sel.Participant1} {(p.home*100).toFixed(0)}%</span>
               <span className="text-slate-400">Draw {(p.draw*100).toFixed(0)}%</span>
               <span className="text-amber-300">{sel.Participant2} {(p.away*100).toFixed(0)}%</span>

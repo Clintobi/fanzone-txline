@@ -22,7 +22,7 @@ export default function Home() {
             <span className="w-2 h-2 rounded-full bg-pitch-400 animate-pulse" />
             Final Sweepstake — live win-probability from TxLINE odds
           </div>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+          <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-[-0.035em] leading-[1.03] mb-3 text-balance">
             Call the Final. Bring your group.
           </h2>
           <p className="text-slate-400 max-w-2xl">
