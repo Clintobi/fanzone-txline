@@ -16,8 +16,10 @@ export const TXLINE_ORACLE_PROGRAM = '6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP
 export const CLUSTER = 'devnet'
 const RPC = process.env.FZ_DEVNET_RPC || 'https://api.devnet.solana.com'
 
-export const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=${CLUSTER}`
-export const explorerAddr = (a: string) => `https://explorer.solana.com/address/${a}?cluster=${CLUSTER}`
+// Solscan renders devnet txs reliably (explorer.solana.com's devnet RPC often
+// hangs on "Loading") and labels the Memo instruction clearly — better for proof links.
+export const explorerTx = (sig: string) => `https://solscan.io/tx/${sig}?cluster=${CLUSTER}`
+export const explorerAddr = (a: string) => `https://solscan.io/account/${a}?cluster=${CLUSTER}`
 
 let signer: Keypair | null | undefined // undefined = not yet loaded, null = not configured
 function loadSigner(): Keypair | null {

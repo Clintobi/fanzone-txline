@@ -52,7 +52,7 @@ export default function CallPage({ searchParams }: { searchParams: SP }) {
           Make your call in room “{room}” →
         </Link>
         {tx && (
-          <a href={`https://explorer.solana.com/tx/${tx}?cluster=${cluster}`} target="_blank" rel="noopener noreferrer"
+          <a href={`https://solscan.io/tx/${tx}?cluster=${cluster}`} target="_blank" rel="noopener noreferrer"
             className="block mt-4 text-xs text-slate-500 hover:text-pitch-300">
             view the on-chain commitment ↗
           </a>

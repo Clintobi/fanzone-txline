@@ -518,7 +518,7 @@ export function SweepstakeRoom() {
                     </span>
                   </span>
                   <span className="flex items-center gap-3 shrink-0">
-                    {call && <a href={`https://explorer.solana.com/tx/${call.signature}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-ink-faint hover:text-accent-300 transition" title="this call, on Solana">↗</a>}
+                    {call && <a href={`https://solscan.io/tx/${call.signature}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-ink-faint hover:text-accent-300 transition" title="this call, on Solana">↗</a>}
                     <span className="font-display font-extrabold tnum text-ink text-[17px]">{r.pts}</span>
                   </span>
                 </div>
