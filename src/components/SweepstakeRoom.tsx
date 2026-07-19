@@ -252,9 +252,9 @@ export function SweepstakeRoom() {
             <span className="block whitespace-nowrap">Bring your group.</span>
           </h1>
           <p className="mt-6 max-w-md text-ink-mute text-[17px] leading-relaxed text-pretty">
-            Spin up a sweepstake room and call the score against a live win-probability bar on
-            TxLINE&apos;s real odds. Every call is locked on Solana before kickoff and settled from
-            TxLINE&apos;s on-chain proof. No wallet needed.
+            Spin up a room, call the final score, and watch a live win-probability bar move on
+            TxLINE&apos;s real odds. Every call locks on Solana before kickoff and settles from
+            TxLINE&apos;s on-chain proof — no wallet, no scorekeeper, no arguments.
           </p>
           <div className="mt-8 flex items-center gap-3 flex-wrap">
             <a href="#call" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-[14px] bg-accent text-accent-ink font-bold text-sm hover:bg-accent-400 hover:-translate-y-0.5 transition-all">
@@ -502,7 +502,7 @@ export function SweepstakeRoom() {
           <button onClick={() => loadBoard(room)} className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint hover:text-ink-mute transition">refresh</button>
         </div>
         {board.length === 0 ? (
-          <p className="text-sm text-ink-mute max-w-md">No calls yet. Lock a prediction and share the room link to fill it up.</p>
+          <p className="text-sm text-ink-mute max-w-md">No calls yet — lock your prediction and share the room link to get the board going.</p>
         ) : (
           <div className="divide-y divide-white/[0.06] border-y rule">
             {board.map((r, i) => {
@@ -538,9 +538,9 @@ export function SweepstakeRoom() {
             </div>
             <p className="text-sm text-ink-mute leading-relaxed max-w-2xl text-pretty">
               Every call is <span className="text-ink-soft">timestamped on Solana devnet before kickoff</span> — a real
-              transaction you can open in Explorer, so nobody in your room can change a pick after the fact. At full
-              time the result is tied to TxLINE&apos;s stat-validation Merkle root, the exact value TxODDS anchors
-              on-chain — so it isn&apos;t &ldquo;trust the app,&rdquo; it&apos;s pinned to TxODDS&apos;s own cryptographic attestation.
+              transaction anyone can open in Explorer, so no one in your room can change a pick after the fact. At full
+              time, the result settles against TxLINE&apos;s stat-validation Merkle root — the exact value TxODDS anchors
+              on-chain. It isn&apos;t &ldquo;trust the app,&rdquo; it&apos;s pinned to TxODDS&apos;s own cryptographic proof.
             </p>
             {settle && (
               <div className="mt-5 text-xs font-mono">
@@ -563,7 +563,7 @@ export function SweepstakeRoom() {
         <div className="border-t rule pt-8 flex items-center justify-between flex-wrap gap-5">
           <div>
             <div className="font-display font-extrabold text-ink text-xl tracking-[-0.01em]">Host a branded room</div>
-            <div className="text-sm text-ink-mute mt-1.5 max-w-md text-pretty">Sponsored sweepstakes, custom themes &amp; prize pools — the Sleeper model. Rooms are the product.</div>
+            <div className="text-sm text-ink-mute mt-1.5 max-w-md text-pretty">Run a sponsored sweepstake for your brand, bar, or fan community — custom branding, a prize pool, and a provably-fair leaderboard, all in one shareable link.</div>
           </div>
           <button className="text-xs font-semibold px-4 py-2.5 rounded-full border border-accent-700/70 text-accent-200 hover:bg-accent hover:text-accent-ink hover:border-accent transition whitespace-nowrap">Sponsor a room</button>
         </div>

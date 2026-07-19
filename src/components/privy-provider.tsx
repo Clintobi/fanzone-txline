@@ -18,9 +18,12 @@ export function PrivyGate({ children }: { children: ReactNode }) {
     <PrivyProvider
       appId={APP_ID}
       config={{
-        appearance: { walletChainType: 'solana-only', theme: 'dark', accentColor: '#22c55e' },
+        appearance: { walletChainType: 'solana-only', theme: 'dark', accentColor: '#3EE97F' },
         loginMethods: ['email', 'wallet'],
-        embeddedWallets: { createOnLogin: 'all-users' },
+        // Privy v3: embedded-wallet creation is per-chain. This app is Solana-only,
+        // so a top-level createOnLogin creates NOTHING here — it must be nested under
+        // `solana` or no embedded wallet is minted on login.
+        embeddedWallets: { solana: { createOnLogin: 'all-users' } },
         externalWallets: { solana: { connectors: toSolanaWalletConnectors() } },
         solana: {
           rpcs: {
