@@ -1,0 +1,32 @@
+[
+  {
+    "id": "replay-odds-1",
+    "kind": "odds",
+    "delayMs": 0,
+    "payload": { "FixtureId": 18257865, "SuperOddsType": "TXLineStablePriceDemargined1X2", "Pct": [48, 28, 24], "Timestamp": 1784400000000 }
+  },
+  {
+    "id": "replay-score-1",
+    "kind": "scores",
+    "delayMs": 4000,
+    "payload": { "FixtureId": 18257865, "Seq": 41, "StatusId": 40, "Stats": { "1": 1, "2": 0 } }
+  },
+  {
+    "id": "replay-odds-2",
+    "kind": "odds",
+    "delayMs": 8000,
+    "payload": { "FixtureId": 18257865, "SuperOddsType": "TXLineStablePriceDemargined1X2", "Pct": [63, 22, 15], "Timestamp": 1784400001400 }
+  },
+  {
+    "id": "replay-odds-3",
+    "kind": "odds",
+    "delayMs": 8000,
+    "payload": { "FixtureId": 18257865, "SuperOddsType": "TXLineStablePriceDemargined1X2", "Pct": [41, 31, 28], "Timestamp": 1784400002100 }
+  },
+  {
+    "id": "replay-final",
+    "kind": "scores",
+    "delayMs": 50000,
+    "payload": { "FixtureId": 18257865, "Seq": 100, "StatusId": 100, "Action": "game_finalised", "Stats": { "1": 2, "2": 1 } }
+  }
+]

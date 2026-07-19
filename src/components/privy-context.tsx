@@ -28,14 +28,14 @@ export function PrivySignIn() {
   if (!b.authenticated) {
     return (
       <button onClick={b.login}
-        className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 hover:text-white transition">
-        Sign in to own your calls
+        className="font-mono text-[10px] uppercase tracking-[0.1em] px-2.5 py-1 rounded-full border border-accent-800/70 text-accent-300 hover:bg-accent hover:text-accent-ink transition-colors">
+        Sign up with Solana
       </button>
     )
   }
   return (
-    <span className="text-[10px] px-2 py-0.5 rounded-full bg-pitch-900/50 text-pitch-300" title={b.email || 'your embedded wallet'}>
-      you own your calls · {short(b.address)}
-    </span>
+    <button onClick={b.logout} className="font-mono text-[10px] uppercase tracking-[0.08em] px-2.5 py-1 rounded-full border border-accent-900/60 text-accent-300 hover:border-accent-700 transition-colors" title={`${b.email || 'Embedded Solana wallet'} · select to sign out`}>
+      wallet-owned · {short(b.address)}
+    </button>
   )
 }

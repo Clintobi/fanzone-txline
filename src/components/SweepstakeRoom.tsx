@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { txline, readScore, readOdds, type Fixture, type Score, type Odds } from '@/lib/txline'
+import { gradePrediction, narrateOddsShift, narrateScoreChange, oddsFromLive, scoreFromLive } from '@/lib/live.mjs'
 import { usePrivyBridge, PrivySignIn } from '@/components/privy'
 
 type Pick = 'home' | 'draw' | 'away'
+type StreamMode = 'connecting' | 'live' | 'replay' | 'snapshot'
+type Pulse = { id: string; kind: 'odds' | 'score' | 'room'; title: string; detail: string; at: number }
 
 // team → 3-letter code + dominant flag hue (rgb) for the hexagon badge + card tint.
 // No emoji, no external assets — a robust broadcast-grade badge.
@@ -85,8 +88,18 @@ export function SweepstakeRoom() {
   const [callCopied, setCallCopied] = useState(false)
   const [onchainShared, setOnchainShared] = useState(false)
   const [onchainCalls, setOnchainCalls] = useState<{ alias: string; pick: string; signature: string }[]>([])
-  const poll = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [streamMode, setStreamMode] = useState<StreamMode>('connecting')
+  const [lastTickAt, setLastTickAt] = useState<number | null>(null)
+  const [pulse, setPulse] = useState<Pulse[]>([])
+  const previousOdds = useRef<Odds | null>(null)
+  const previousScore = useRef<Score | null>(null)
+  const gradedKey = useRef('')
   const privy = usePrivyBridge() // null unless NEXT_PUBLIC_PRIVY_APP_ID is set
+  const needsSignIn = Boolean(privy?.ready && !privy.authenticated)
+
+  const addPulse = useCallback((item: Omit<Pulse, 'id' | 'at'>) => {
+    setPulse(current => [{ ...item, id: `${Date.now()}-${Math.random()}`, at: Date.now() }, ...current].slice(0, 8))
+  }, [])
 
   // is the on-chain commit signer configured on this deploy?
   useEffect(() => {
@@ -133,34 +146,95 @@ export function SweepstakeRoom() {
   }, [])
   useEffect(() => { if (room) loadBoard(room) }, [room, loadBoard])
 
-  // poll live score + odds for the selected match
+  // Real TxLINE SSE is the primary transport. A deterministic replay is exposed
+  // at ?replay=1 for judges; 30-second snapshots are a clearly-labelled fallback.
   useEffect(() => {
     if (!sel) return
-    if (poll.current) clearInterval(poll.current)
-    const tick = async () => {
+    let stopped = false
+    const connected = new Set<string>()
+    const replayMode = new URLSearchParams(window.location.search).get('replay') === '1'
+    previousOdds.current = null
+    previousScore.current = null
+    setStreamMode('connecting')
+
+    const snapshot = async () => {
+      if (replayMode) return
       try {
         const [scoreRows, oddsRows] = await Promise.all([txline.getScoresSnapshot(sel.FixtureId), txline.getOddsSnapshot(sel.FixtureId)])
         const s = readScore(scoreRows)
         const o = readOdds(oddsRows)
-        setScore(s)
-        // keep the last real odds if a poll momentarily returns none for a live match
-        setOdds(prev => o ?? (s.finished ? null : prev))
+        if (!stopped) {
+          setScore(s)
+          setOdds(prev => o ?? (s.finished ? null : prev))
+          previousScore.current = s
+          if (o) previousOdds.current = o
+        }
       } catch {}
     }
-    tick(); poll.current = setInterval(tick, 8000)
-    return () => { if (poll.current) clearInterval(poll.current) }
-  }, [sel])
+
+    const attach = (kind: 'odds' | 'scores') => {
+      const source = new EventSource(`/api/live?kind=${kind}&fixture=${sel.FixtureId}${replayMode ? '&replay=1' : ''}`)
+      source.addEventListener('status', (raw) => {
+        const status = JSON.parse((raw as MessageEvent).data) as { mode?: string }
+        if (status.mode === 'live' || status.mode === 'replay') {
+          connected.add(kind)
+          setStreamMode(status.mode)
+        } else if (status.mode === 'replay-complete') {
+          source.close()
+        } else if (status.mode === 'unavailable') {
+          connected.delete(kind)
+          if (!connected.size) setStreamMode('snapshot')
+        }
+      })
+      source.addEventListener(kind, (raw) => {
+        const envelope = JSON.parse((raw as MessageEvent).data) as { payload?: unknown }
+        const now = Date.now()
+        if (kind === 'odds') {
+          const next = oddsFromLive(envelope.payload, sel.FixtureId)
+          if (!next) return
+          const line = narrateOddsShift(previousOdds.current, next, { home: sel.Participant1, away: sel.Participant2 })
+          setOdds(next)
+          previousOdds.current = next
+          if (line) addPulse(line)
+        } else {
+          const next = scoreFromLive(envelope.payload, sel.FixtureId)
+          if (!next) return
+          const line = narrateScoreChange(previousScore.current, next, { home: sel.Participant1, away: sel.Participant2 })
+          setScore(next)
+          previousScore.current = next
+          if (line) addPulse(line)
+        }
+        setLastTickAt(now)
+      })
+      source.onerror = () => {
+        connected.delete(kind)
+        if (!connected.size && !replayMode) setStreamMode('snapshot')
+      }
+      return source
+    }
+
+    const oddsStream = attach('odds')
+    const scoresStream = attach('scores')
+    snapshot()
+    const interval = replayMode ? undefined : setInterval(snapshot, 30_000)
+    return () => {
+      stopped = true
+      oddsStream.close()
+      scoresStream.close()
+      if (interval) clearInterval(interval)
+    }
+  }, [sel, addPulse])
 
   const grade = useCallback((lk: { pick: Pick; exact?: [number, number] }) => {
-    if (!score.finished) return 0
-    const actual: Pick = score.h > score.a ? 'home' : score.h < score.a ? 'away' : 'draw'
-    let pts = lk.pick === actual ? PICK_PTS : 0
-    if (pts && lk.exact && lk.exact[0] === score.h && lk.exact[1] === score.a) pts += EXACT_BONUS
-    return pts
+    return gradePrediction(lk, score, PICK_PTS, EXACT_BONUS)
   }, [score])
 
   async function lockIn() {
     if (!pick || !name.trim()) return
+    if (needsSignIn) {
+      privy?.login()
+      return
+    }
     const m = exact.match(/^(\d+)\s*[-:]\s*(\d+)$/)
     const lk = { pick, exact: m ? [Number(m[1]), Number(m[2])] as [number, number] : undefined }
     setLocked(lk)
@@ -187,12 +261,15 @@ export function SweepstakeRoom() {
   // when the match finishes, re-grade a pending pick, update streak, push result
   useEffect(() => {
     if (locked && score.finished && name.trim()) {
+      const key = `${sel?.FixtureId || 0}:${score.seq}:${name.trim()}:${locked.pick}:${locked.exact?.join('-') || ''}`
+      if (gradedKey.current === key) return
+      gradedKey.current = key
       const pts = grade(locked)
       setStreak(s => { const n = pts > 0 ? s + 1 : 0; try { localStorage.setItem('fz_streak', String(n)) } catch {} ; return n })
       fetch('/api/room', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room, name: name.trim(), pts }) })
         .then(r => r.json()).then(d => { setBoard(d.board || []); setShared(!!d.shared) }).catch(() => {})
     }
-  }, [score.finished]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [locked, score.finished, score.seq, name, room, grade, sel?.FixtureId])
 
   // build + share a personalized "I called it" link (unfurls the /api/card OG image)
   function shareCall() {
@@ -233,6 +310,17 @@ export function SweepstakeRoom() {
   ]) : []
   const lead = probRows.length ? probRows.reduce((a, b) => (b.v > a.v ? b : a)) : null
   const kickoff = sel ? new Date(sel.StartTime).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
+  const streamLabel = streamMode === 'live'
+    ? 'TxLINE SSE · live'
+    : streamMode === 'replay'
+      ? 'TxLINE SSE · judge replay'
+      : streamMode === 'connecting'
+        ? 'connecting to TxLINE SSE'
+        : 'TxLINE snapshot fallback'
+
+  function react(title: string) {
+    addPulse({ kind: 'room', title, detail: `${name.trim() || 'A fan'} reacted in room ${room}.` })
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-5">
@@ -254,12 +342,13 @@ export function SweepstakeRoom() {
           <p className="mt-6 max-w-md text-ink-mute text-[17px] leading-relaxed text-pretty">
             Spin up a room, call the final score, and watch a live win-probability bar move on
             TxLINE&apos;s real odds. Every call locks on Solana before kickoff and settles from
-            TxLINE&apos;s on-chain proof — no wallet, no scorekeeper, no arguments.
+            TxLINE&apos;s on-chain proof — an embedded Solana wallet, no seed phrase, no scorekeeper.
           </p>
           <div className="mt-8 flex items-center gap-3 flex-wrap">
-            <a href="#call" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-[14px] bg-accent text-accent-ink font-bold text-sm hover:bg-accent-400 hover:-translate-y-0.5 transition-all">
-              Make your call <span aria-hidden className="translate-y-px">↓</span>
-            </a>
+            <button onClick={() => needsSignIn ? privy?.login() : document.querySelector('#call')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-[14px] bg-accent text-accent-ink font-bold text-sm hover:bg-accent-400 hover:-translate-y-0.5 transition-all">
+              {needsSignIn ? 'Sign up with Solana' : 'Make your call'} <span aria-hidden className="translate-y-px">↓</span>
+            </button>
             <button onClick={share} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-[14px] border rule text-ink-soft hover:text-ink hover:rule-strong transition text-sm">
               {copied ? 'Link copied ✓' : 'Invite your group ↗'}
             </button>
@@ -269,7 +358,7 @@ export function SweepstakeRoom() {
             <span className="text-line-strong" aria-hidden>/</span>
             <span>TxLINE odds</span>
             <span className="text-line-strong" aria-hidden>/</span>
-            <span>No wallet</span>
+            <span>{privy ? 'Wallet-owned calls' : 'Keyless guest mode'}</span>
           </div>
         </div>
 
@@ -355,7 +444,7 @@ export function SweepstakeRoom() {
                       <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-mute">Win probability</span>
                     )}
                     <span className={`font-mono text-[10px] uppercase tracking-[0.14em] shrink-0 ${odds ? 'text-accent-400/90' : 'text-ink-faint'}`}>
-                      {odds ? 'live · de-margined' : 'awaiting 1X2'}
+                      {odds ? 'de-margined 1X2' : 'awaiting 1X2'}
                     </span>
                   </div>
                   {odds ? (
@@ -380,7 +469,8 @@ export function SweepstakeRoom() {
                 {/* kickoff meta — balances the ticket height + reinforces the on-chain story */}
                 <div className="mt-5 pt-4 border-t rule flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.14em]">
                   <span className="text-ink-mute">Kickoff · {kickoff}</span>
-                  <span className="text-ink-faint">Locks on-chain</span>
+                  <span className={streamMode === 'live' ? 'text-accent-300' : streamMode === 'replay' ? 'text-gold-soft' : 'text-ink-faint'}
+                    title={lastTickAt ? `Last tick ${new Date(lastTickAt).toLocaleTimeString()}` : undefined}>{streamLabel}</span>
                 </div>
               </div>
             </div>
@@ -409,6 +499,48 @@ export function SweepstakeRoom() {
           {copied ? 'copied ✓' : 'Invite ↗'}
         </button>
       </div>
+
+      {/* ─────────── ROOM PULSE ─────────── */}
+      <section className="border-b rule py-7" aria-live="polite" aria-label="Live room reactions and TxLINE updates">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_auto] gap-6 lg:items-start">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="font-display font-extrabold text-ink text-xl tracking-[-0.015em]">Room pulse</h2>
+              <span className={`font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-1 rounded-full border ${streamMode === 'live' ? 'border-accent-800/70 text-accent-300' : streamMode === 'replay' ? 'border-gold/30 text-gold-soft' : 'rule text-ink-faint'}`}>
+                {streamLabel}
+              </span>
+            </div>
+            {pulse.length ? (
+              <ol className="divide-y divide-white/[0.06] max-w-2xl">
+                {pulse.slice(0, 3).map(item => (
+                  <li key={item.id} className="py-3 first:pt-0 flex gap-3">
+                    <span className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${item.kind === 'odds' ? 'bg-accent' : item.kind === 'score' ? 'bg-live' : 'bg-gold'}`} />
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-ink">{item.title}</span>
+                        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-ink-faint">{item.kind === 'room' ? 'room' : `TxLINE ${item.kind}`}</span>
+                      </div>
+                      <p className="text-[13px] text-ink-mute leading-relaxed mt-0.5">{item.detail}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-sm text-ink-mute max-w-xl">The pulse narrates each relevant TxLINE odds or score tick. Try the credential-free judge replay with <span className="font-mono text-ink-soft">?replay=1</span>.</p>
+            )}
+          </div>
+          <div className="lg:text-right">
+            <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-ink-faint mb-2.5">React with the room</div>
+            <div className="flex flex-wrap lg:justify-end gap-2">
+              {['What a swing', 'I called it', 'Still believe'].map(label => (
+                <button key={label} onClick={() => react(label)} className="px-3 py-2 rounded-lg border rule text-[11px] text-ink-mute hover:text-ink hover:rule-strong transition-colors">
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ─────────── CALL THE RESULT ─────────── */}
       {sel && (
@@ -442,7 +574,7 @@ export function SweepstakeRoom() {
                 className="w-full bg-surface-2 border rule rounded-xl px-4 py-3.5 text-sm text-ink placeholder:text-ink-mute focus:rule-strong outline-none transition" />
               <button onClick={lockIn} disabled={!pick || !name.trim()}
                 className="w-full py-4 rounded-xl bg-accent hover:bg-accent-400 text-accent-ink text-sm font-bold tracking-wide transition-colors disabled:bg-surface-2 disabled:text-ink-faint disabled:border disabled:border-line disabled:cursor-not-allowed">
-                Lock it in
+                {needsSignIn ? 'Sign in with Solana to lock' : 'Lock it in'}
               </button>
             </div>
           ) : (
@@ -560,12 +692,25 @@ export function SweepstakeRoom() {
 
       {/* ─────────── MONETIZATION ─────────── */}
       <section className="pt-14 lg:pt-20 pb-2">
-        <div className="border-t rule pt-8 flex items-center justify-between flex-wrap gap-5">
+        <div className="border-t rule pt-8 grid lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-8 lg:gap-14">
           <div>
-            <div className="font-display font-extrabold text-ink text-xl tracking-[-0.01em]">Host a branded room</div>
-            <div className="text-sm text-ink-mute mt-1.5 max-w-md text-pretty">Run a sponsored sweepstake for your brand, bar, or fan community — custom branding, a prize pool, and a provably-fair leaderboard, all in one shareable link.</div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent-300 mb-2">Free for fans · paid by hosts</div>
+            <h2 className="font-display font-extrabold text-ink text-[clamp(1.5rem,3vw,2.1rem)] tracking-[-0.02em] leading-tight">Turn any match into a branded watch party.</h2>
+            <p className="text-sm text-ink-mute mt-3 max-w-md text-pretty leading-relaxed">Bars, supporter groups, broadcasters, and sponsors get a provably-fair room with their identity, rewards, and live participation analytics. Fans keep the zero-friction experience.</p>
+            <button className="mt-5 text-xs font-semibold px-4 py-2.5 rounded-lg border border-accent-700/70 text-accent-200 hover:bg-accent hover:text-accent-ink hover:border-accent transition whitespace-nowrap">Sponsor a room</button>
           </div>
-          <button className="text-xs font-semibold px-4 py-2.5 rounded-full border border-accent-700/70 text-accent-200 hover:bg-accent hover:text-accent-ink hover:border-accent transition whitespace-nowrap">Sponsor a room</button>
+          <dl className="divide-y divide-white/[0.06] border-y rule">
+            {[
+              ['Branded rooms', 'A per-event or season subscription for custom identity, moderation, exports, and sponsor placement.'],
+              ['Organizer-funded pools', 'Where lawful, an optional platform fee on sponsor-funded prizes — never hidden inside fan scoring.'],
+              ['Campaign intelligence', 'Aggregate participation, retention, and sentiment reporting for rights-holders and venue partners.'],
+            ].map(([term, detail]) => (
+              <div key={term} className="py-4 grid sm:grid-cols-[150px_1fr] gap-1 sm:gap-5">
+                <dt className="text-sm font-semibold text-ink">{term}</dt>
+                <dd className="text-[13px] text-ink-mute leading-relaxed">{detail}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </section>
     </div>

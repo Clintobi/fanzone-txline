@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.vercel
+.env*
+*.key
+*.pem
+*.keypair.json
+*credentials*.json
+*creds*.json
+ref-prizepicks

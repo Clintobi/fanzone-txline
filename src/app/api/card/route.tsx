@@ -6,8 +6,7 @@ import type { NextRequest } from 'next/server'
 // "<alias> called <pick> · verified on-chain", tapping through to join the room.
 // This is the no-wallet viral loop (works for everyone, unlike a wallet Blink).
 export const runtime = 'edge'
-export const contentType = 'image/png'
-export const size = { width: 1200, height: 630 }
+const imageSize = { width: 1200, height: 630 }
 
 const FLAG: Record<string, string> = {
   France: '🇫🇷', England: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', Spain: '🇪🇸', Argentina: '🇦🇷', Brazil: '🇧🇷',
@@ -62,6 +61,6 @@ export async function GET(req: NextRequest) {
         </div>
       </div>
     ),
-    size,
+    imageSize,
   )
 }

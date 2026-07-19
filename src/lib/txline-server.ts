@@ -5,9 +5,9 @@ import 'server-only'
 // /api/txline/featured scanner one shared, cached auth path.
 
 export const API_ORIGIN = process.env.TXLINE_API_ORIGIN || 'https://txline-dev.txodds.com'
-// Free-tier devnet read token, obtained once via TxLINE's on-chain subscribe flow.
-// Kept server-side; never shipped to the client bundle.
-export const API_TOKEN = process.env.TXLINE_API_TOKEN || 'txoracle_api_6f0df6e475c04668b9a3a19aa1eefda4'
+// TxLINE's hackathon devnet read token. It is required at runtime, held only in
+// the deployment environment, and never shipped to the client bundle.
+export const API_TOKEN = process.env.TXLINE_API_TOKEN || ''
 
 // --- guest JWT, cached across requests within a warm lambda ---
 let jwt: string | null = null

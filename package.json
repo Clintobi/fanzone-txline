@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test test/*.test.mjs",
+    "judge:verify": "node scripts/judge-verify.mjs"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.35.1",

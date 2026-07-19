@@ -3,9 +3,8 @@
 // TxLINE is proxied server-side (token stays server-only, and a CloudFront blip on
 // one request can't leave the page stuck on "Loading fixtures…").
 module.exports = {
+  output: 'standalone',
   images: { unoptimized: true },
-  typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
   webpack: (config) => {
     // Privy references optional integrations we don't use (Stripe onramp, Farcaster
     // mini-app). We only use email/wallet login, so stub these so the bundler doesn't
