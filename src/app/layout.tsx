@@ -1,9 +1,12 @@
 import './globals.css'
-import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
+import { Inter, Fraunces, JetBrains_Mono } from 'next/font/google'
 import { PrivyLoader } from '@/components/privy'
 
+// Editorial contrast axis: a high-contrast serif display (Fraunces) against a
+// clean grotesk UI (Inter), with a mono for live data. Serif + sans is the
+// heart of the magazine look.
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
-const display = Space_Grotesk({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-display' })
+const display = Fraunces({ subsets: ['latin'], weight: ['400', '500', '600', '700', '900'], style: ['normal', 'italic'], variable: '--font-display' })
 const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-mono' })
 
 export const metadata = {
@@ -27,7 +30,7 @@ export const metadata = {
 }
 
 export const viewport = {
-  themeColor: '#020617',
+  themeColor: '#0b0b0d',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

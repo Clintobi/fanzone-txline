@@ -3,17 +3,40 @@
 @tailwind utilities;
 
 :root {
-  --foreground: #f8fafc;
-  --background: #020617;
+  --foreground: #f3f0ea; /* warm off-white ink */
+  --background: #0b0b0d; /* near-black */
+  --rule: rgba(243, 240, 234, 0.12); /* hairline */
+  --rule-strong: rgba(243, 240, 234, 0.2);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
+  font-feature-settings: 'ss01', 'cv01';
+}
+
+/* editorial display defaults: high-contrast serif, tight but not touching */
+.font-display {
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  /* hairline rules — the editorial substitute for heavy card borders */
+  .rule { border-color: var(--rule); }
+  .rule-strong { border-color: var(--rule-strong); }
+  .divide-rule > * + * { border-color: var(--rule); }
+}
+
+::selection {
+  background: #4ade80;
+  color: #06210f;
 }

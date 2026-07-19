@@ -199,87 +199,98 @@ export function SweepstakeRoom() {
   const isFeatured = sel != null && sel.FixtureId === featuredId
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-3xl mx-auto px-5 py-14 space-y-10">
       {/* room bar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs px-2.5 py-1 rounded-full bg-pitch-950 border border-pitch-800 text-pitch-300">
-            Sweepstake room · <b>{room}</b>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] px-2.5 py-1 rounded-full border rule text-ink-soft">
+            Room · <b className="text-ink font-semibold">{room}</b>
           </span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full ${shared || onchainShared ? 'bg-pitch-900/50 text-pitch-300' : 'bg-slate-800 text-slate-500'}`}
+          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${shared || onchainShared ? 'border-pitch-800/70 text-pitch-300' : 'rule text-ink-faint'}`}
             title={onchainShared ? 'Every call is a Memo tx — the board is read straight from Solana, shared across all devices' : undefined}>
-            {onchainShared ? 'shared · read from Solana' : shared ? 'shared leaderboard' : 'local (connect KV to share)'}
+            {onchainShared ? 'shared · read from Solana' : shared ? 'shared' : 'local'}
           </span>
           {streak > 0 && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300" title="correct calls in a row">
+            <span className="text-[10px] px-2 py-0.5 rounded-full border border-amber-500/30 text-amber-300" title="correct calls in a row">
               🔥 {streak} streak
             </span>
           )}
           <PrivySignIn />
         </div>
-        <button onClick={share} className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 hover:border-pitch-600">
+        <button onClick={share} className="text-[11px] px-3 py-1.5 rounded-full border rule text-ink-soft hover:text-ink hover:rule-strong transition">
           {copied ? 'link copied ✓' : 'Invite friends ↗'}
         </button>
       </div>
 
       {/* featured match + win-prob */}
       {!sel && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 animate-pulse">
-          <div className="h-4 w-28 bg-slate-800 rounded mb-6" />
-          <div className="flex items-center justify-center gap-6 py-2">
-            <div className="flex-1 flex flex-col items-center gap-2"><div className="w-10 h-10 rounded-full bg-slate-800" /><div className="h-3 w-16 bg-slate-800 rounded" /></div>
-            <div className="h-10 w-20 bg-slate-800 rounded" />
-            <div className="flex-1 flex flex-col items-center gap-2"><div className="w-10 h-10 rounded-full bg-slate-800" /><div className="h-3 w-16 bg-slate-800 rounded" /></div>
+        <div className="border rule rounded-2xl bg-paper-900/40 px-6 sm:px-8 py-9 animate-pulse">
+          <div className="h-2.5 w-32 bg-white/5 rounded mb-8" />
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+            <div className="flex flex-col items-center gap-2.5"><div className="w-12 h-12 rounded-full bg-white/5" /><div className="h-2.5 w-16 bg-white/5 rounded" /></div>
+            <div className="h-16 w-28 bg-white/5 rounded" />
+            <div className="flex flex-col items-center gap-2.5"><div className="w-12 h-12 rounded-full bg-white/5" /><div className="h-2.5 w-16 bg-white/5 rounded" /></div>
           </div>
-          <div className="h-3 rounded-full bg-slate-800 mt-6" />
-          <p className="text-[11px] text-slate-600 mt-3">Scanning TxLINE for the liveliest match…</p>
+          <div className="h-2 rounded-full bg-white/5 mt-8" />
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint mt-4">Scanning TxLINE for the liveliest match…</p>
         </div>
       )}
       {sel && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className={`text-xs px-2 py-0.5 rounded-full ${score.live ? 'bg-red-500/15 text-red-300' : 'bg-slate-800 text-slate-400'}`}>
-              {score.live && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1.5 animate-pulse" />}{score.status}
+        <div className="border rule rounded-2xl bg-paper-900/40 px-6 sm:px-8 py-8">
+          <div className="flex items-center justify-between mb-8 gap-3">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em]">
+              {score.live && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
+              <span className={score.live ? 'text-red-300' : 'text-ink-mute'}>{score.status}</span>
             </span>
-            <div className="flex items-center gap-2">
-              {isFeatured && <span className="text-[10px] text-pitch-400/80">✦ liveliest on TxLINE</span>}
+            <div className="flex items-center gap-3">
+              {isFeatured && <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.16em] text-pitch-400/80">✦ liveliest on TxLINE</span>}
               {fixtures.length > 1 && (
                 <select value={sel.FixtureId} onChange={e => setSel(fixtures.find(f => f.FixtureId === Number(e.target.value)) || sel)}
-                  className="text-xs bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-400">
-                  {fixtures.map(f => <option key={f.FixtureId} value={f.FixtureId}>{f.Participant1} v {f.Participant2}</option>)}
+                  className="text-[11px] bg-transparent border rule rounded-md px-2 py-1 text-ink-mute outline-none">
+                  {fixtures.map(f => <option key={f.FixtureId} value={f.FixtureId} className="bg-paper-900">{f.Participant1} v {f.Participant2}</option>)}
                 </select>
               )}
             </div>
           </div>
-          <div className="flex items-center justify-center gap-6 py-2">
-            <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant1)}</div><div className="font-display text-sm text-slate-200">{sel.Participant1}</div></div>
-            <div className="font-mono text-5xl font-bold tabular-nums"><AnimatedInt value={score.h} /><span className="text-slate-600 mx-2">–</span><AnimatedInt value={score.a} /></div>
-            <div className="text-center flex-1"><div className="text-4xl mb-1">{flag(sel.Participant2)}</div><div className="font-display text-sm text-slate-200">{sel.Participant2}</div></div>
+
+          {/* the score — oversized editorial serif */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-8">
+            <div className="text-center">
+              <div className="text-4xl sm:text-5xl mb-2.5">{flag(sel.Participant1)}</div>
+              <div className="font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.12em] text-ink-soft">{sel.Participant1}</div>
+            </div>
+            <div className="font-display font-semibold tnum leading-none tracking-[-0.02em] text-[clamp(3rem,13vw,5.5rem)] flex items-baseline gap-2 sm:gap-3">
+              <AnimatedInt value={score.h} /><span className="text-ink-faint">–</span><AnimatedInt value={score.a} />
+            </div>
+            <div className="text-center">
+              <div className="text-4xl sm:text-5xl mb-2.5">{flag(sel.Participant2)}</div>
+              <div className="font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.12em] text-ink-soft">{sel.Participant2}</div>
+            </div>
           </div>
 
-          {/* live win-probability bar — real TxLINE 1X2, or an honest empty state (never a fake flat bar) */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1">
-              <span>win probability</span>
-              <span className={odds ? 'text-pitch-400/80' : 'text-slate-600'}>
-                {odds ? 'live · de-margined from TxLINE odds' : 'awaiting TxLINE 1X2 market'}
+          {/* live win-probability — thin elegant bar (real TxLINE 1X2, or an honest empty state) */}
+          <div className="mt-8 pt-6 border-t rule">
+            <div className="flex items-baseline justify-between mb-2.5">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-mute">Win probability</span>
+              <span className={`font-mono text-[10px] uppercase tracking-[0.14em] ${odds ? 'text-pitch-400/80' : 'text-ink-faint'}`}>
+                {odds ? 'live · de-margined' : 'awaiting 1X2'}
               </span>
             </div>
             {odds ? (
               <>
-                <div className="h-3 rounded-full overflow-hidden bg-slate-800 flex">
+                <div className="h-2 rounded-full overflow-hidden bg-white/10 flex">
                   <div className="bg-pitch-500 transition-all duration-700 ease-out" style={{ width: `${odds.home * 100}%` }} title={`${sel.Participant1} ${(odds.home*100).toFixed(0)}%`} />
-                  <div className="bg-slate-500 transition-all duration-700 ease-out" style={{ width: `${odds.draw * 100}%` }} title={`Draw ${(odds.draw*100).toFixed(0)}%`} />
-                  <div className="bg-amber-500 transition-all duration-700 ease-out" style={{ width: `${odds.away * 100}%` }} title={`${sel.Participant2} ${(odds.away*100).toFixed(0)}%`} />
+                  <div className="bg-ink-faint transition-all duration-700 ease-out" style={{ width: `${odds.draw * 100}%` }} title={`Draw ${(odds.draw*100).toFixed(0)}%`} />
+                  <div className="bg-amber-400 transition-all duration-700 ease-out" style={{ width: `${odds.away * 100}%` }} title={`${sel.Participant2} ${(odds.away*100).toFixed(0)}%`} />
                 </div>
-                <div className="flex justify-between text-[11px] mt-1 font-mono">
+                <div className="flex justify-between mt-2.5 font-mono text-[11px] tnum">
                   <span className="text-pitch-300">{sel.Participant1} <AnimatedPct value={odds.home} /></span>
-                  <span className="text-slate-400">Draw <AnimatedPct value={odds.draw} /></span>
+                  <span className="text-ink-mute">Draw <AnimatedPct value={odds.draw} /></span>
                   <span className="text-amber-300">{sel.Participant2} <AnimatedPct value={odds.away} /></span>
                 </div>
               </>
             ) : (
-              <div className="h-3 rounded-full bg-[repeating-linear-gradient(45deg,#1e293b,#1e293b_8px,#0f172a_8px,#0f172a_16px)]"
+              <div className="h-2 rounded-full bg-[repeating-linear-gradient(45deg,rgba(243,240,234,0.09),rgba(243,240,234,0.09)_7px,transparent_7px,transparent_14px)]"
                 title="TxLINE hasn't posted a 1X2 market for this fixture yet" />
             )}
           </div>
@@ -288,35 +299,38 @@ export function SweepstakeRoom() {
 
       {/* prediction */}
       {sel && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-          <h3 className="text-sm font-semibold mb-3">Call the result {locked ? '' : <span className="text-slate-500 font-normal">· winner {PICK_PTS} pts · exact score +{EXACT_BONUS}</span>}</h3>
+        <div className="border rule rounded-2xl bg-paper-900/40 px-6 sm:px-8 py-7">
+          <div className="flex items-baseline justify-between gap-3 mb-5">
+            <h2 className="font-display text-xl font-semibold">Call the result</h2>
+            {!locked && <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint shrink-0">Winner {PICK_PTS} · exact +{EXACT_BONUS}</span>}
+          </div>
           {!locked ? (
             <div className="space-y-3">
               <input value={name} onChange={e => setName(e.target.value)} maxLength={24} placeholder="your name"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:border-pitch-600 outline-none" />
+                className="w-full bg-transparent border rule rounded-lg px-3.5 py-3 text-sm text-ink placeholder:text-ink-mute focus:rule-strong outline-none transition" />
               <div className="grid grid-cols-3 gap-2">
                 {(['home', 'draw', 'away'] as Pick[]).map(k => {
                   const label = k === 'home' ? sel.Participant1 : k === 'away' ? sel.Participant2 : 'Draw'
-                  return <button key={k} onClick={() => setPick(k)} className={`px-3 py-2.5 rounded-lg text-sm border transition ${pick === k ? 'border-pitch-500 bg-pitch-600 text-white' : 'border-slate-800 hover:border-slate-600'}`}>{label}</button>
+                  return <button key={k} onClick={() => setPick(k)} className={`px-3 py-3 rounded-lg text-sm border transition truncate ${pick === k ? 'border-pitch-500 bg-pitch-500 text-[#06210f] font-semibold' : 'rule text-ink-soft hover:text-ink hover:rule-strong'}`}>{label}</button>
                 })}
               </div>
               <input value={exact} onChange={e => setExact(e.target.value)} placeholder="exact score (optional, e.g. 2-1)"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:border-pitch-600 outline-none" />
-              <button onClick={lockIn} disabled={!pick || !name.trim()} className="w-full py-2.5 rounded-lg bg-pitch-600 hover:bg-pitch-700 disabled:opacity-50 text-white text-sm font-semibold">Lock it in</button>
+                className="w-full bg-transparent border rule rounded-lg px-3.5 py-3 text-sm text-ink placeholder:text-ink-mute focus:rule-strong outline-none transition" />
+              <button onClick={lockIn} disabled={!pick || !name.trim()} className="w-full py-3 rounded-lg bg-pitch-500 hover:bg-pitch-400 disabled:opacity-40 disabled:hover:bg-pitch-500 text-[#06210f] text-sm font-semibold transition">Lock it in</button>
             </div>
           ) : (
-            <p className="text-sm text-slate-300">
-              Locked: <b className="text-pitch-300">{locked.pick === 'home' ? sel.Participant1 : locked.pick === 'away' ? sel.Participant2 : 'Draw'}</b>
+            <p className="text-sm text-ink-soft leading-relaxed">
+              Locked: <b className="text-ink font-semibold">{locked.pick === 'home' ? sel.Participant1 : locked.pick === 'away' ? sel.Participant2 : 'Draw'}</b>
               {locked.exact && <> · {locked.exact[0]}–{locked.exact[1]}</>}.
               {score.finished
                 ? <> Full time {score.h}–{score.a} → you {grade(locked) > 0 ? `scored ${grade(locked)} pts 🎉` : 'missed this one'}.</>
                 : <> Come back at full time — it grades live from the TxLINE result.</>}
-              {actualLabel && locked.pick !== actualLabel && <span className="text-slate-500"> (result: {actualLabel})</span>}
+              {actualLabel && locked.pick !== actualLabel && <span className="text-ink-mute"> (result: {actualLabel})</span>}
             </p>
           )}
           {chainOn && locked && (
-            <div className="mt-3 text-xs">
-              {commit?.pending && <span className="text-slate-500">🔒 stamping your call on Solana devnet…</span>}
+            <div className="mt-4 text-xs">
+              {commit?.pending && <span className="text-ink-mute">🔒 stamping your call on Solana devnet…</span>}
               {commit?.signature && (
                 <a href={commit.explorer} target="_blank" rel="noopener noreferrer" className="text-pitch-300 hover:underline">
                   🔒 Call committed on-chain before kickoff · view proof ↗
@@ -325,7 +339,7 @@ export function SweepstakeRoom() {
             </div>
           )}
           {locked && (
-            <button onClick={shareCall} className="mt-3 text-xs px-3 py-1.5 rounded-lg border border-pitch-700 text-pitch-200 hover:bg-pitch-950 transition">
+            <button onClick={shareCall} className="mt-4 text-[11px] px-3 py-1.5 rounded-full border border-pitch-700/70 text-pitch-200 hover:bg-pitch-500 hover:text-[#06210f] hover:border-pitch-500 transition">
               {callCopied ? 'link copied ✓' : 'Share my call ↗'}
             </button>
           )}
@@ -333,26 +347,27 @@ export function SweepstakeRoom() {
       )}
 
       {/* shared leaderboard */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold">Room leaderboard</h3>
-          <button onClick={() => loadBoard(room)} className="text-xs text-slate-500 hover:text-slate-300">refresh</button>
+      <div className="border rule rounded-2xl bg-paper-900/40 px-6 sm:px-8 py-7">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="font-display text-xl font-semibold">Leaderboard</h2>
+          <button onClick={() => loadBoard(room)} className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint hover:text-ink-mute transition">refresh</button>
         </div>
         {board.length === 0 ? (
-          <p className="text-xs text-slate-600">No calls yet. Lock a prediction and share the room link to fill it up.</p>
+          <p className="text-sm text-ink-mute">No calls yet. Lock a prediction and share the room link to fill it up.</p>
         ) : (
-          <div className="space-y-1.5">
+          <div className="divide-y divide-white/[0.07]">
             {board.map((r, i) => {
               const call = onchainCalls.find(c => c.alias === r.name)
+              const me = r.name === name.trim()
               return (
-                <div key={r.name + i} className={`flex items-center justify-between text-sm px-3 py-1.5 rounded ${r.name === name.trim() ? 'bg-pitch-950/40 text-pitch-200' : 'text-slate-400'}`}>
-                  <span className="truncate">
-                    {i + 1}. {r.name}
-                    {call && <span className="text-slate-600"> · called {call.pick}</span>}
+                <div key={r.name + i} className={`flex items-center justify-between gap-3 py-2.5 text-sm ${me ? 'text-pitch-200' : 'text-ink-soft'}`}>
+                  <span className="flex items-baseline gap-3 min-w-0">
+                    <span className="font-mono text-[11px] text-ink-faint tnum shrink-0">{i + 1}</span>
+                    <span className="truncate">{r.name}{call && <span className="text-ink-faint"> · {call.pick}</span>}</span>
                   </span>
-                  <span className="flex items-center gap-2 shrink-0">
-                    {call && <a href={`https://explorer.solana.com/tx/${call.signature}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-600 hover:text-pitch-300" title="this call, on Solana">↗</a>}
-                    <span className="tabular-nums">{r.pts}</span>
+                  <span className="flex items-center gap-2.5 shrink-0">
+                    {call && <a href={`https://explorer.solana.com/tx/${call.signature}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-ink-faint hover:text-pitch-300 transition" title="this call, on Solana">↗</a>}
+                    <span className="font-mono tnum text-ink">{r.pts}</span>
                   </span>
                 </div>
               )
@@ -363,27 +378,27 @@ export function SweepstakeRoom() {
 
       {/* provably fair — on-chain trust layer */}
       {chainOn && (
-        <div className="rounded-2xl border border-pitch-900/50 bg-pitch-950/20 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-semibold text-pitch-200">Provably fair</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">Solana devnet</span>
+        <div className="border border-pitch-900/40 rounded-2xl bg-pitch-950/15 px-6 sm:px-8 py-7">
+          <div className="flex items-center gap-2.5 mb-3">
+            <h2 className="font-display text-xl font-semibold text-pitch-100">Provably fair</h2>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint border rule rounded-full px-2 py-0.5">Solana devnet</span>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Every call is <b className="text-slate-200">timestamped on Solana devnet before kickoff</b> (a real
+          <p className="text-sm text-ink-mute leading-relaxed max-w-2xl text-pretty">
+            Every call is <b className="text-ink-soft font-semibold">timestamped on Solana devnet before kickoff</b> (a real
             transaction you can open in Explorer), so nobody in your room can change a pick after the fact. At full
-            time the result is <b className="text-slate-200">tied to TxLINE&apos;s stat-validation Merkle root</b> —
+            time the result is <b className="text-ink-soft font-semibold">tied to TxLINE&apos;s stat-validation Merkle root</b> —
             the exact value TxODDS anchors on-chain — so it isn&apos;t &ldquo;trust the app,&rdquo; it&apos;s pinned to
             TxODDS&apos;s own cryptographic attestation.
           </p>
           {settle && (
-            <div className="mt-3 text-xs">
+            <div className="mt-4 text-xs">
               {settle.verified ? (
                 <a href={settle.programExplorer} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-pitch-300 hover:underline">
-                  ✓ Result matched to TxLINE&apos;s anchored Merkle root · {settle.root?.slice(0, 8)}… · seq {settle.seq} · oracle program ↗
+                  className="inline-flex items-center gap-2 text-pitch-300 hover:underline font-mono">
+                  ✓ matched to TxLINE&apos;s anchored root · {settle.root?.slice(0, 8)}… · seq {settle.seq} · oracle program ↗
                 </a>
               ) : (
-                <span className="text-slate-600">{settle.detail}</span>
+                <span className="text-ink-faint">{settle.detail}</span>
               )}
             </div>
           )}
@@ -391,12 +406,12 @@ export function SweepstakeRoom() {
       )}
 
       {/* monetization */}
-      <div className="rounded-2xl border border-slate-800/70 bg-gradient-to-br from-slate-900/60 to-pitch-950/20 p-5 flex items-center justify-between flex-wrap gap-3">
+      <div className="border rule rounded-2xl px-6 sm:px-8 py-6 flex items-center justify-between flex-wrap gap-4">
         <div>
-          <div className="text-sm font-semibold">Host a branded room</div>
-          <div className="text-xs text-slate-500">Sponsored sweepstakes, custom themes & prize pools — the Sleeper model. Rooms are the product.</div>
+          <div className="font-display text-lg font-semibold">Host a branded room</div>
+          <div className="text-sm text-ink-mute mt-1 max-w-md text-pretty">Sponsored sweepstakes, custom themes &amp; prize pools — the Sleeper model. Rooms are the product.</div>
         </div>
-        <button className="text-xs px-3 py-1.5 rounded-lg bg-pitch-600/90 hover:bg-pitch-600 text-white">Sponsor a room</button>
+        <button className="text-xs px-4 py-2 rounded-full border border-pitch-700/70 text-pitch-200 hover:bg-pitch-500 hover:text-[#06210f] hover:border-pitch-500 transition whitespace-nowrap">Sponsor a room</button>
       </div>
     </div>
   )
