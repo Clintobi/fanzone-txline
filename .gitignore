@@ -4,3 +4,10 @@ out
 .vercel
 next-env.d.ts
 .env*.local
+
+# design reference dump (fonts + screenshots) — kept local only
+ref-prizepicks/
+# os + build junk
+.DS_Store
+**/.DS_Store
+tsconfig.tsbuildinfo

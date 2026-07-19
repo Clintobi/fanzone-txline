@@ -4,38 +4,37 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        // display = editorial serif (Fraunces)
-        display: ['var(--font-display)', 'Georgia', 'Times New Roman', 'serif'],
-        serif: ['var(--font-display)', 'Georgia', 'serif'],
-        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        // one grotesk superfamily; .font-display adds width + weight in CSS
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-sans)', 'Arial Narrow', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'JetBrains Mono', 'monospace'],
       },
       colors: {
-        // editorial ink-on-near-black; warmth carried by the text, not the bg
+        // ── semantic tokens (broadcast sports-game, near-black + sparse accent) ──
+        bg: '#0A0B0F',
+        surface: { DEFAULT: '#12141A', 2: '#0D0F14', raised: '#181B22' },
+        line: { DEFAULT: '#23262E', strong: '#2E323C' },
         ink: {
-          DEFAULT: '#f3f0ea', // warm off-white primary text
-          soft: '#c9c6bf',
-          mute: '#8f8d86',
-          faint: '#5c5b56',
+          DEFAULT: '#F4F6F8', // primary text + big numbers
+          soft: '#C9CED6',
+          mute: '#9BA1AC', // secondary — passes 4.5:1 on bg
+          faint: '#5A606B', // tertiary / large-only
         },
-        paper: {
-          950: '#0b0b0d', // near-black body
-          900: '#111114', // raised surface
-          800: '#1a1a1e',
-          700: '#26262b',
+        accent: {
+          DEFAULT: '#3EE97F', // action + live number + win + on-chain-OK
+          ink: '#06210F', // text on accent fills
+          100: '#D6FBE4', 200: '#A8F6C6', 300: '#7DF3A6', 400: '#52ED8B',
+          500: '#3EE97F', 600: '#23C766', 700: '#1B9E51', 800: '#166A3B',
+          900: '#0E3A22', 950: '#06210F',
         },
+        live: '#FF5A46', // LIVE pulse only — never a CTA
+        gold: { DEFAULT: '#EBBB54', soft: '#F3D488', ink: '#2A2008' }, // champion / settled / streak only
+
+        // ── backward-compat aliases (old names → new values) ──
+        paper: { 950: '#0A0B0F', 900: '#12141A', 800: '#181B22', 700: '#24272F' },
         pitch: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-          950: '#052e16',
+          50: '#EAFEF1', 100: '#D6FBE4', 200: '#A8F6C6', 300: '#7DF3A6', 400: '#52ED8B',
+          500: '#3EE97F', 600: '#23C766', 700: '#1B9E51', 800: '#166A3B', 900: '#0E3A22', 950: '#06210F',
         },
       },
     },
